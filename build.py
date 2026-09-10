@@ -40,3 +40,14 @@ out = ROOT / 'dist' / 'index.html'
 out.parent.mkdir(exist_ok=True)
 out.write_text(html, encoding='utf-8')
 print('gerado %s (%.0f KB)' % (out, out.stat().st_size / 1024))
+
+# 5. variante para publicar como Artifact do Claude: mesmo conteúdo, mas
+#    sem doctype/html/head/body, que lá são injetados pela plataforma
+title = re.search(r'<title>(.*?)</title>', html, re.S).group(1)
+style = re.search(r'<style>(.*?)</style>', html, re.S).group(1)
+viewport = re.search(r'<meta name="viewport"[^>]*>', html).group(0)
+body = re.search(r'<body>(.*)</body>', html, re.S).group(1)
+art = ROOT / 'dist' / 'artifact.html'
+art.write_text('<title>%s</title>\n%s\n<style>\n%s\n</style>\n%s\n'
+               % (title, viewport, style, body.strip()), encoding='utf-8')
+print('gerado %s (%.0f KB)' % (art, art.stat().st_size / 1024))

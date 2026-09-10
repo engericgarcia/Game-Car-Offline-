@@ -35,6 +35,10 @@ Para gerar de novo depois de mexer no código:
 python3 build.py
 ```
 
+Isso escreve dois arquivos: `dist/index.html` (para abrir direto) e
+`dist/artifact.html` (mesmo jogo, sem as tags de documento, para publicar
+como Artifact do Claude).
+
 ### Rodar no computador
 
 ```bash
