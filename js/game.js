@@ -599,4 +599,5 @@ function boot() {
     navigator.serviceWorker.register('sw.js').catch(() => { });
   }
 }
-window.addEventListener('load', boot);
+if (document.readyState === 'complete') boot();
+else window.addEventListener('load', boot);
