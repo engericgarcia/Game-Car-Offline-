@@ -1,0 +1,16 @@
+{
+  "name": "Drift GP - Corridas de Cima",
+  "short_name": "Drift GP",
+  "description": "Jogo de corrida offline com visão de cima, drift e circuitos inspirados na Fórmula 1.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0e1116",
+  "theme_color": "#12151a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

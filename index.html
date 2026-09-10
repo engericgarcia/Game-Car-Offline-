@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#12151a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Drift GP">
+<title>Drift GP</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div class="hud-top">
+    <div class="hud-left">
+      <button id="btn-pause" class="icon-btn" aria-label="Pausar">II</button>
+      <div class="chip"><span id="hud-track">—</span><em id="hud-mode">—</em></div>
+    </div>
+    <div class="hud-right">
+      <div class="stat" id="hud-pos-wrap"><span>POS</span><b id="hud-pos">1/6</b></div>
+      <div class="stat" id="hud-lap-wrap"><span>VOLTA</span><b id="hud-lap">1/3</b></div>
+      <div class="stat"><span>TEMPO</span><b id="hud-time">--:--.---</b></div>
+      <div class="stat" id="hud-best-wrap"><span>MELHOR</span><b id="hud-best">--:--.---</b></div>
+      <div class="stat" id="hud-drift-wrap"><span>DRIFT</span><b id="hud-drift">0</b></div>
+    </div>
+  </div>
+  <div class="speedo"><b id="hud-speed">0</b><span>km/h</span></div>
+  <div id="toast"></div>
+</div>
+
+<!-- ============ CONTROLES ============ -->
+<div id="touch" class="hidden">
+  <div class="pad pad-left">
+    <button class="tbtn steer" data-btn="left" aria-label="Esquerda">◀</button>
+    <button class="tbtn steer" data-btn="right" aria-label="Direita">▶</button>
+  </div>
+  <div class="pad pad-right">
+    <button class="tbtn brake" data-btn="brake" aria-label="Freio">FREIO</button>
+    <button class="tbtn drift" data-btn="drift" aria-label="Freio de mão">DRIFT</button>
+    <button class="tbtn gas" id="btn-gas" data-btn="gas" aria-label="Acelerar">GÁS</button>
+  </div>
+  <div class="pad-hint">segure <b>DRIFT</b> na entrada da curva</div>
+</div>
+
+<!-- ============ MENU ============ -->
+<section id="screen-menu" class="screen hidden">
+  <div class="panel">
+    <div class="logo"><span>DRIFT</span><b>GP</b></div>
+    <p class="tagline">Corridas de cima, traseira solta, circuitos de F1.</p>
+
+    <div class="pick">
+      <button id="btn-open-tracks" class="pick-btn">
+        <span>CIRCUITO</span><b id="menu-track">—</b><em id="menu-record">—</em>
+      </button>
+      <button id="btn-open-cars" class="pick-btn">
+        <span>CARRO</span><b id="menu-car">—</b><em>trocar</em>
+      </button>
+    </div>
+
+    <div class="modes">
+      <button id="btn-play-race" class="big primary">🏁 Corrida</button>
+      <button id="btn-play-time" class="big">⏱ Contra-relógio</button>
+      <button id="btn-play-drift" class="big">💨 Ataque de drift</button>
+    </div>
+
+    <button id="btn-open-settings" class="ghost">⚙ Ajustes</button>
+    <p class="hint">Teclado: ← → dirigir · ↑ acelerar · ↓ freio · <kbd>espaço</kbd> drift · <kbd>P</kbd> pausa</p>
+  </div>
+</section>
+
+<!-- ============ CIRCUITOS ============ -->
+<section id="screen-track" class="screen hidden">
+  <div class="panel wide">
+    <h2>Escolha o circuito</h2>
+    <div id="track-list" class="grid"></div>
+    <button class="ghost" data-back>← Voltar</button>
+  </div>
+</section>
+
+<!-- ============ CARROS ============ -->
+<section id="screen-car" class="screen hidden">
+  <div class="panel wide">
+    <h2>Escolha o carro</h2>
+    <div id="car-list" class="grid"></div>
+    <button class="ghost" data-back>← Voltar</button>
+  </div>
+</section>
+
+<!-- ============ AJUSTES ============ -->
+<section id="screen-settings" class="screen hidden">
+  <div class="panel">
+    <h2>Ajustes</h2>
+    <label class="opt"><span>Acelerador automático<em>só dirigir e derrapar</em></span>
+      <input type="checkbox" id="set-autogas"></label>
+    <label class="opt"><span>Ajuda de contra-esterço<em>o carro se endireita sozinho</em></span>
+      <input type="checkbox" id="set-assist"></label>
+    <label class="opt"><span>Som<em>motor e derrapagem</em></span>
+      <input type="checkbox" id="set-sound"></label>
+    <label class="opt range"><span>Adversários<em>na corrida</em></span>
+      <input type="range" id="set-opponents" min="0" max="7" step="1"><b id="set-opponents-val">5</b></label>
+    <label class="opt range"><span>Dificuldade<em>ritmo da IA</em></span>
+      <input type="range" id="set-difficulty" min="0" max="2" step="1"><b id="set-difficulty-val">Normal</b></label>
+    <button id="btn-reset-records" class="ghost danger">Apagar recordes</button>
+    <button class="ghost" data-back>← Voltar</button>
+  </div>
+</section>
+
+<!-- ============ PAUSA ============ -->
+<section id="screen-pause" class="screen hidden">
+  <div class="panel small">
+    <h2>Pausado</h2>
+    <button id="btn-resume" class="big primary">Continuar</button>
+    <button id="btn-restart" class="big">Reiniciar</button>
+    <button id="btn-quit" class="ghost">Sair para o menu</button>
+  </div>
+</section>
+
+<!-- ============ RESULTADO ============ -->
+<section id="screen-results" class="screen hidden">
+  <div class="panel small">
+    <h2 id="results-title">Fim</h2>
+    <p class="tagline" id="results-sub"></p>
+    <div id="results-body" class="rows"></div>
+    <button id="btn-results-again" class="big primary">Correr de novo</button>
+    <button id="btn-results-menu" class="ghost">Menu</button>
+  </div>
+</section>
+
+<script src="js/utils.js?v=2"></script>
+<script src="js/tracks.js?v=2"></script>
+<script src="js/car.js?v=2"></script>
+<script src="js/ai.js?v=2"></script>
+<script src="js/audio.js?v=2"></script>
+<script src="js/render.js?v=2"></script>
+<script src="js/game.js?v=2"></script>
+</body>
+</html>
