@@ -83,27 +83,39 @@ function shade(hex, t) {
 /* Suaviza apenas os "bicos" do traçado: onde o raio da curva fica
    menor que minRadius, o ponto é puxado para o meio dos vizinhos.
    Sem isso, uma chicane desenhada à mão vira uma curva impossível. */
-function relaxCurvature(pts, spacing, minRadius, iters) {
+function relaxCurvature(pts, spacing, minRadius, passes) {
   let cur = pts.map(p => p.slice());
-  const n = cur.length;
-  for (let it = 0; it < iters; it++) {
-    const out = cur.map(p => p.slice());
-    let changed = false;
-    for (let i = 0; i < n; i++) {
-      const a = cur[(i - 1 + n) % n], b = cur[i], c = cur[(i + 1) % n];
-      const a1 = Math.atan2(b[1] - a[1], b[0] - a[0]);
-      const a2 = Math.atan2(c[1] - b[1], c[0] - b[0]);
-      const dth = Math.abs(wrapAngle(a2 - a1));
-      const r = spacing / Math.max(dth, 1e-6);
-      if (r < minRadius) {
-        const w = clamp(1 - r / minRadius, 0, 1) * 0.45;
-        out[i][0] = b[0] + ((a[0] + c[0]) / 2 - b[0]) * w;
-        out[i][1] = b[1] + ((a[1] + c[1]) / 2 - b[1]) * w;
-        changed = true;
+  for (let pass = 0; pass < passes; pass++) {
+    let moved = false;
+    /* algumas iterações de suavização... */
+    for (let it = 0; it < 14; it++) {
+      const n = cur.length;
+      const out = cur.map(p => p.slice());
+      let changed = false;
+      for (let i = 0; i < n; i++) {
+        const a = cur[(i - 1 + n) % n], b = cur[i], c = cur[(i + 1) % n];
+        const a1 = Math.atan2(b[1] - a[1], b[0] - a[0]);
+        const a2 = Math.atan2(c[1] - b[1], c[0] - b[0]);
+        const dth = Math.abs(wrapAngle(a2 - a1));
+        /* o espaçamento local encolhe conforme os pontos são puxados, então
+           medir com o espaçamento original superestima o raio */
+        const step = (Math.hypot(b[0] - a[0], b[1] - a[1]) +
+          Math.hypot(c[0] - b[0], c[1] - b[1])) / 2;
+        if (step / Math.max(dth, 1e-6) < minRadius) {
+          const w = clamp(1 - (step / Math.max(dth, 1e-6)) / minRadius, 0, 1) * 0.5;
+          out[i][0] = b[0] + ((a[0] + c[0]) / 2 - b[0]) * w;
+          out[i][1] = b[1] + ((a[1] + c[1]) / 2 - b[1]) * w;
+          changed = true;
+        }
       }
+      cur = out;
+      if (!changed) { if (it === 0) return cur; break; }
+      moved = true;
     }
-    cur = out;
-    if (!changed) break;
+    /* ...e redistribui: sem isso os pontos se amontoam no ápice e a curva
+       continua fechada mesmo depois de "suavizada" */
+    cur = resampleClosed(cur, spacing);
+    if (!moved) break;
   }
   return cur;
 }

@@ -147,7 +147,10 @@ function startRace() {
   Sound.init();
 }
 
-function baseZoom() { return clamp(Math.min(cw, ch) / 340, 0.65, 2.4); }
+/* quanto do mundo cabe na menor dimensão da tela.
+   Pista larga precisa de campo de visão maior, senão não se vê a curva. */
+const VIEW_UNITS = 440;
+function baseZoom() { return clamp(Math.min(cw, ch) / VIEW_UNITS, 0.45, 2.4); }
 
 /* ---------------- laço principal ---------------- */
 let last = performance.now(), acc = 0;

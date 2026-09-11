@@ -35,14 +35,14 @@ class AIDriver {
     }
 
     /* ponto de mira à frente, proporcional à velocidade */
-    const aheadUnits = (off ? 26 : 40) + speed * 0.36;
+    const aheadUnits = (off ? 30 : 46) + speed * 0.38;
     const ai = (car.idx + Math.round(aheadUnits / track.spacing)) % n;
     const ap = track.pts[ai];
 
     /* trajetória: por dentro da curva, aberto na reta.
        fora da pista, mira direto na linha central para voltar */
     const k = ap.curv;
-    const apexPull = clamp(Math.abs(k) * 900, 0, 1);
+    const apexPull = clamp(Math.abs(k) * track.length / 8, 0, 1);
     const wob = Math.sin((t * 0.0007) + this.noise) * 0.07;
     const offset = off ? 0
       : (-Math.sign(k) * apexPull * 0.30 + this.lane * (1 - apexPull * 0.6) + wob) * track.half;
@@ -83,7 +83,8 @@ class AIDriver {
 
     /* freio de mão em curvas bem fechadas: deixa a IA atravessada também */
     this.hbTimer -= dt;
-    if (!off && this.hbTimer <= -0.9 && Math.abs(diff) > 0.62 && speed > 200 && Math.abs(k) > 0.0075) {
+    if (!off && this.hbTimer <= -0.9 && Math.abs(diff) > 0.62 && speed > 200 &&
+      Math.abs(k) * track.length > 34) {
       this.hbTimer = 0.45;
     }
     const handbrake = this.hbTimer > 0.2;
@@ -103,8 +104,8 @@ function makeGrid(track, playerSpec, opponentCount, playerSlot, difficulty) {
       color: AI_COLORS[i % AI_COLORS.length]
     });
     const car = new Car(spec, track, isPlayer);
-    const arc = -(46 + i * 40);
-    const lateral = (i % 2 === 0 ? -1 : 1) * track.half * 0.34;
+    const arc = -(58 + i * 50);
+    const lateral = (i % 2 === 0 ? -1 : 1) * track.half * 0.38;
     car.placeAtArc((track.length + arc) % track.length, lateral);
     car.name = isPlayer ? 'VOCÊ' : usedNames[i % usedNames.length];
     cars.push(car);

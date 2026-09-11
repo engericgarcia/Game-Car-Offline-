@@ -70,7 +70,17 @@ derrapa) e a *ajuda de contra-esterço*, que endireita o carro sozinho.
 
 ## O que tem no jogo
 
-**5 circuitos** — Monza, Mônaco, Interlagos, Spa e uma Arena de Drift para treino livre.
+**5 circuitos**, com o traçado e a sequência de curvas dos originais:
+
+| Circuito | Curvas | Volta | Corrida | Caráter |
+|---|---|---|---|---|
+| 🇮🇹 Monza | 11 | ~25 s | 3 voltas | retões e chicanes; a mais rápida |
+| 🇲🇨 Mônaco | 19 | ~20 s | 4 voltas | rua estreita, muros, grampo do Grand Hotel |
+| 🇧🇷 Interlagos | 15 | ~21 s | 4 voltas | S do Senna, Reta Oposta, miolo técnico |
+| 🇧🇪 Spa | 19 | ~28 s | 3 voltas | La Source, Eau Rouge, Kemmel; a mais longa |
+| 🏁 Arena de Drift | — | ~12 s | 5 voltas | pista larguíssima, só para derrapar |
+
+Cada pista é larga o bastante para os seis carros correrem lado a lado.
 
 **4 carros** com características diferentes: `Sprinter` (equilibrado),
 `Kaido AE` (rei do drift), `Bruto V8` (potência) e `Kappa GT` (aderência).
@@ -100,10 +110,13 @@ tools_make_icons.py     gera os ícones PNG do app
 
 ### Duas decisões que valem explicar
 
-**Traçado.** Cada pista é uma lista curta de pontos desenhados à mão, suavizada
-por spline Catmull-Rom. Pontos feitos à mão criam "bicos" — curvas de raio 15 que
-nenhum carro consegue fazer. Por isso `relaxCurvature()` passa depois arredondando
-só os trechos que estouram um raio mínimo, sem mexer no resto do desenho.
+**Traçado.** Cada pista é uma lista de pontos desenhados à mão seguindo a
+sequência real de curvas do circuito, suavizada por spline Catmull-Rom e esticada
+pelo campo `scale` (é ele que define o comprimento da volta). Desenho à mão cria
+"bicos" — curvas de raio menor que o próprio carro consegue fazer. `relaxCurvature()`
+passa depois arredondando só os trechos que estouram um raio mínimo. Ele **redistribui
+os pontos a cada passada**: sem isso eles se amontoam no ápice e a curva continua
+fechada mesmo parecendo suave.
 
 **Drift.** A velocidade é separada em componente frontal e lateral. A lateral é
 consumida pela aderência a cada quadro; o freio de mão derruba essa aderência.

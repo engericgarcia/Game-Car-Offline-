@@ -5,8 +5,16 @@
    ============================================================ */
 'use strict';
 
-const STATIC_SCALE = 2;   /* nitidez da camada do circuito */
-const MARKS_SCALE = 1.5;  /* marcas de pneu (menor = menos memória) */
+/* As pistas grandes não cabem numa textura de resolução fixa: um circuito
+   de 2000x1400 a 2x daria ~90 MB. Em vez de fixar a nitidez, fixamos o
+   orçamento de pixels e deixamos a nitidez se ajustar ao tamanho da pista. */
+const LAYER_PIXEL_BUDGET = 6.5e6;   /* ~26 MB */
+const MARKS_PIXEL_BUDGET = 2.0e6;   /* ~8 MB  */
+/* limites de nitidez: abaixo de ~0.9 as zebras ficam borradas */
+
+function layerScale(bounds, budget, min, max) {
+  return clamp(Math.sqrt(budget / (bounds.w * bounds.h)), min, max);
+}
 
 function offsetPoints(track, offset) {
   const out = new Array(track.n);
@@ -47,16 +55,20 @@ function curveIntensity(track, lo, hi) {
 
 function buildTrackLayer(track) {
   const b = track.bounds;
+  const sc = layerScale(b, LAYER_PIXEL_BUDGET, 0.92, 2);
   const cv = document.createElement('canvas');
-  cv.width = Math.ceil(b.w * STATIC_SCALE);
-  cv.height = Math.ceil(b.h * STATIC_SCALE);
+  cv.width = Math.ceil(b.w * sc);
+  cv.height = Math.ceil(b.h * sc);
   const ctx = cv.getContext('2d');
-  ctx.setTransform(STATIC_SCALE, 0, 0, STATIC_SCALE, -b.x * STATIC_SCALE, -b.y * STATIC_SCALE);
+  ctx.setTransform(sc, 0, 0, sc, -b.x * sc, -b.y * sc);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
   const def = track.def;
-  const inten = curveIntensity(track, 0.0055, 0.013);   /* zebras */
-  const sandI = curveIntensity(track, 0.0095, 0.021);   /* áreas de escape */
+  /* o que conta como "curva" depende do tamanho do circuito: numa pista de
+     7 km uma curva de raio 600 é curva; numa de 2 km, é quase reta */
+  const L = track.length;
+  const inten = curveIntensity(track, 10 / L, 42 / L);   /* zebras */
+  const sandI = curveIntensity(track, 26 / L, 75 / L);   /* áreas de escape */
   const half = track.half;
 
   /* ---------- fundo ----------
@@ -79,7 +91,8 @@ function buildTrackLayer(track) {
 
   const rng = makeRng(def.id.length * 7919 + 13);
   ctx.save();
-  for (let i = 0; i < 3200; i++) {
+  const blobs = clamp(Math.round(b.w * b.h / 900), 1500, 9000);
+  for (let i = 0; i < blobs; i++) {
     const x = b.x + rng() * b.w, y = b.y + rng() * b.h, r = 2.5 + rng() * 9;
     ctx.fillStyle = rng() > 0.5 ? 'rgba(255,255,255,0.030)' : 'rgba(0,0,0,0.045)';
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
@@ -89,7 +102,8 @@ function buildTrackLayer(track) {
   if (def.urban) {
     /* quarteirões / prédios em volta do circuito de rua */
     ctx.save();
-    for (let i = 0; i < 90; i++) {
+    const blocks = clamp(Math.round(b.w * b.h / 14000), 90, 420);
+    for (let i = 0; i < blocks; i++) {
       const p = track.pts[Math.floor(rng() * track.n)];
       const side = rng() > 0.5 ? 1 : -1;
       const d = half + 26 + rng() * 90;
@@ -147,7 +161,8 @@ function buildTrackLayer(track) {
 
   ctx.save();
   ctx.globalCompositeOperation = 'overlay';
-  for (let i = 0; i < 700; i++) {
+  const specks = clamp(Math.round(track.n * 1.6), 600, 2600);
+  for (let i = 0; i < specks; i++) {
     const p = track.pts[Math.floor(rng() * track.n)];
     const o = (rng() - 0.5) * track.width;
     ctx.fillStyle = rng() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
@@ -235,11 +250,12 @@ function drawStartLine(ctx, track) {
 /* ---------- marcas de pneu ---------- */
 function makeMarksLayer(track) {
   const b = track.bounds;
+  const sc = layerScale(b, MARKS_PIXEL_BUDGET, 0.45, 1.2);
   const cv = document.createElement('canvas');
-  cv.width = Math.ceil(b.w * MARKS_SCALE);
-  cv.height = Math.ceil(b.h * MARKS_SCALE);
+  cv.width = Math.ceil(b.w * sc);
+  cv.height = Math.ceil(b.h * sc);
   const ctx = cv.getContext('2d');
-  ctx.setTransform(MARKS_SCALE, 0, 0, MARKS_SCALE, -b.x * MARKS_SCALE, -b.y * MARKS_SCALE);
+  ctx.setTransform(sc, 0, 0, sc, -b.x * sc, -b.y * sc);
   ctx.lineCap = 'round';
   return { canvas: cv, ctx: ctx, bounds: b };
 }
