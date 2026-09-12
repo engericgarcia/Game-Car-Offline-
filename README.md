@@ -164,8 +164,16 @@ navegador do computador) continua com a cópia antiga em cache:
 python3 bump.py
 ```
 
-Isso troca o `?v=N` no `index.html` e as constantes `CACHE` e `V` no `sw.js`,
-que é o que faz o aparelho baixar os arquivos novos. Para testar sem cache
+Isso troca o `?v=N` no `index.html`, as constantes `CACHE` e `V` no `sw.js`,
+o `APP_VERSION` em `js/game.js` e o `version.json` — e **regenera a lista de
+arquivos do service worker a partir do `index.html`**. Essa lista feita à mão
+sai de sincronia: já aconteceu de dois módulos novos ficarem de fora dela e o
+jogo não abrir sem internet.
+
+O jogo compara o `APP_VERSION` com o `version.json` do servidor ao abrir e
+toda vez que volta do segundo plano. Se estiver atrasado, limpa o cache e
+recarrega sozinho (nunca no meio de uma corrida); se mesmo assim não resolver,
+mostra uma barra para tocar e forçar. Para testar sem cache
 nenhum, abra com `?nosw=1` na URL.
 
 **Memória.** O circuito inteiro é desenhado uma vez numa textura em cache.

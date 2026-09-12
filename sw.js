@@ -1,14 +1,25 @@
 /* Service worker: guarda tudo no cache para o jogo abrir sem internet */
 /* Ao editar o jogo, suba o número desta versão (e o ?v= no index.html)
    para o celular baixar os arquivos novos na próxima abertura. */
-const CACHE = 'driftgp-v12';
-const V = 'v=12';
+const CACHE = 'driftgp-v14';
+const V = 'v=14';
 const ASSETS = [
-  './', './index.html', './manifest.webmanifest',
+  './',
+  './index.html',
+  './manifest.webmanifest',
   './style.css?' + V,
-  './js/utils.js?' + V, './js/tracks.js?' + V, './js/car.js?' + V, './js/ai.js?' + V,
-  './js/audio.js?' + V, './js/render.js?' + V, './js/game.js?' + V,
-  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'
+  './js/utils.js?' + V,
+  './js/teams.js?' + V,
+  './js/tracks.js?' + V,
+  './js/car.js?' + V,
+  './js/ai.js?' + V,
+  './js/audio.js?' + V,
+  './js/render.js?' + V,
+  './js/season.js?' + V,
+  './js/game.js?' + V,
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', e => {
@@ -36,9 +47,18 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
+  /* o arquivo de versão nunca pode vir do cache: é ele que descobre
+     que existe versão nova */
+  if (url.pathname.endsWith('version.json')) {
+    e.respondWith(fetch(req, { cache: 'no-store' }).catch(() => new Response('{}')));
+    return;
+  }
+
   if (isDoc(req)) {
     e.respondWith(
-      fetch(req).then(res => {
+      /* 'reload' pula o cache HTTP do navegador (o GitHub manda
+         max-age=600, o que faria o SW receber HTML de 10 minutos atrás) */
+      fetch(req, { cache: 'reload' }).then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy));
         return res;

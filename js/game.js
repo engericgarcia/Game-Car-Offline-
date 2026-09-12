@@ -3,6 +3,10 @@
    ============================================================ */
 'use strict';
 
+/* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
+   version.json do servidor para descobrir se o aparelho está atrasado. */
+const APP_VERSION = 14;
+
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
   mode: 'race',            /* race | time | drift */
@@ -828,6 +832,47 @@ setInterval(() => {
 }, 60);
 
 /* ---------------- início ---------------- */
+/* Um app instalado na tela de início pode ficar dias sem navegar, e aí
+   nunca descobre que saiu versão nova. Esta checagem roda ao abrir e toda
+   vez que o app volta do segundo plano. */
+async function checkForUpdate(auto) {
+  if (window.__STANDALONE__ || !location.protocol.startsWith('http')) return;
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const remota = (await r.json()).version;
+    if (!(remota > APP_VERSION)) return;
+
+    /* só recarrega sozinho fora de corrida, e uma vez por sessão */
+    const podeRecarregar = auto && Game.state === 'menu' &&
+      !sessionStorage.getItem('gc_reloaded');
+    if (podeRecarregar) {
+      sessionStorage.setItem('gc_reloaded', '1');
+      try {
+        for (const k of await caches.keys()) await caches.delete(k);
+        for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.update();
+      } catch (e) { }
+      location.reload();
+      return;
+    }
+    showUpdateBar();
+  } catch (e) { }
+}
+
+function showUpdateBar() {
+  const bar = el('update-bar');
+  if (!bar) return;
+  bar.classList.remove('hidden');
+  bar.onclick = async () => {
+    bar.textContent = 'Atualizando…';
+    try {
+      for (const k of await caches.keys()) await caches.delete(k);
+      for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister();
+    } catch (e) { }
+    location.replace(location.pathname + '?r=' + Date.now());
+  };
+}
+
 function boot() {
   loadStore();
   Season.load();
@@ -843,8 +888,14 @@ function boot() {
   const noSW = window.__STANDALONE__ || location.search.indexOf('nosw') >= 0 ||
     localStorage.getItem('gc_nosw');
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !noSW) {
-    navigator.serviceWorker.register('sw.js').catch(() => { });
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => reg.update())
+      .catch(() => { });
   }
+  checkForUpdate(true);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkForUpdate(true);
+  });
 }
 if (document.readyState === 'complete') boot();
 else window.addEventListener('load', boot);
