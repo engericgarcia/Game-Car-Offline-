@@ -5,7 +5,7 @@
 
 /* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
    version.json do servidor para descobrir se o aparelho está atrasado. */
-const APP_VERSION = 14;
+const APP_VERSION = 17;
 
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
@@ -93,23 +93,67 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-function bindTouch() {
+/* ---- controles de toque ----
+   Antes cada botão ouvia seus próprios pointerdown/up, e isso trava: com
+   vários dedos na tela o "solta" de um dedo apagava o botão que o outro
+   ainda segurava, e se o dedo saía do botão antes de levantar, o evento
+   de soltura nunca chegava - o acelerador ficava preso ligado.
+
+   Agora cada dedo é rastreado pelo pointerId e o estado dos botões é
+   recalculado a partir de quem está realmente na tela. Soltar fora do
+   botão, arrastar de um botão para outro e apertar rápido: tudo resolve. */
+const pointerKey = new Map();     /* pointerId -> botão que aquele dedo segura */
+
+function controlAt(x, y) {
+  const node = document.elementFromPoint(x, y);
+  const ctl = node && node.closest ? node.closest('[data-btn]') : null;
+  return (ctl && !ctl.classList.contains('hidden')) ? ctl.dataset.btn : null;
+}
+
+function refreshTouch() {
+  for (const k in touch) touch[k] = false;
+  for (const k of pointerKey.values()) if (k) touch[k] = true;
   document.querySelectorAll('[data-btn]').forEach(el => {
-    const k = el.dataset.btn;
-    const on = e => {
-      e.preventDefault();
-      touch[k] = true;
-      el.classList.add('down');
-      if (navigator.vibrate) navigator.vibrate(k === 'brake' ? 14 : 8);
-      Sound.init();
-    };
-    const off = e => { e.preventDefault(); touch[k] = false; el.classList.remove('down'); };
-    el.addEventListener('pointerdown', on);
-    el.addEventListener('pointerup', off);
-    el.addEventListener('pointercancel', off);
-    el.addEventListener('pointerleave', off);
-    el.addEventListener('contextmenu', e => e.preventDefault());
+    el.classList.toggle('down', !!touch[el.dataset.btn]);
   });
+}
+
+function releaseAll() {
+  if (!pointerKey.size) return;
+  pointerKey.clear();
+  refreshTouch();
+}
+
+function bindTouch() {
+  const pad = document.getElementById('touch');
+
+  pad.addEventListener('pointerdown', e => {
+    const k = controlAt(e.clientX, e.clientY);
+    if (!k) return;
+    e.preventDefault();
+    pointerKey.set(e.pointerId, k);
+    refreshTouch();
+    if (navigator.vibrate) navigator.vibrate(k === 'brake' ? 14 : 8);
+    Sound.init();
+  });
+
+  /* arrastar o polegar de ◀ para ▶ sem levantar troca a direção */
+  window.addEventListener('pointermove', e => {
+    if (!pointerKey.has(e.pointerId)) return;
+    const k = controlAt(e.clientX, e.clientY);
+    if (k !== pointerKey.get(e.pointerId)) {
+      pointerKey.set(e.pointerId, k);
+      refreshTouch();
+    }
+  });
+
+  const soltou = e => { if (pointerKey.delete(e.pointerId)) refreshTouch(); };
+  window.addEventListener('pointerup', soltou);
+  window.addEventListener('pointercancel', soltou);
+  /* redes de segurança: perdendo o foco, nada fica preso */
+  window.addEventListener('blur', releaseAll);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+  pad.addEventListener('contextmenu', e => e.preventDefault());
 }
 
 function playerInput() {
@@ -187,7 +231,7 @@ function startRace() {
 
 /* quanto do mundo cabe na menor dimensão da tela.
    Pista larga precisa de campo de visão maior, senão não se vê a curva. */
-const VIEW_UNITS = 440;
+const VIEW_UNITS = 372;      /* menor = câmera mais perto, carro maior */
 function baseZoom() { return clamp(Math.min(cw, ch) / VIEW_UNITS, 0.45, 2.4); }
 
 /* ---------------- laço principal ---------------- */
@@ -320,7 +364,8 @@ function render(now, dt) {
   const k = Math.min(1, (dt || 0.016) * 5.5);
   G.cam.x = lerp(G.cam.x, tx, k);
   G.cam.y = lerp(G.cam.y, ty, k);
-  const zTarget = baseZoom() * (1 - 0.16 * clamp(p.speed / p.spec.top, 0, 1));
+  /* afasta um pouco na velocidade, para dar tempo de ver a curva chegando */
+  const zTarget = baseZoom() * (1 - 0.22 * clamp(p.speed / p.spec.top, 0, 1));
   G.cam.zoom = lerp(G.cam.zoom, zTarget, Math.min(1, (dt || 0.016) * 2.5));
 
   let shake = 0;
@@ -351,22 +396,22 @@ function render(now, dt) {
   /* minimapa */
   const ms = clamp(Math.min(cw, ch) * 0.19, 70, 130);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawMinimap(ctx, G.track, G.cars, 20 + safeLeft, 62 + safeTop, ms);
+  /* o painel pode quebrar em duas linhas; o minimapa segue a altura real dele */
+  drawMinimap(ctx, G.track, G.cars, 18 + safeLeft, hudBottom + 8, ms);
 
-  /* contagem regressiva */
-  if (G.state === 'countdown') {
-    const n = Math.ceil(G.countdown);
-    const txt = n > 0 ? String(Math.min(n, 3)) : 'VAI!';
-    const scale = 1 + (1 - (G.countdown % 1)) * 0.25;
+  /* "VAI!" no instante em que as luzes apagam */
+  if (G.state === 'racing' && G.raceTime < 900) {
+    const a = 1 - G.raceTime / 900;
     ctx.save();
-    ctx.translate(cw / 2, ch * 0.34);
-    ctx.scale(scale, scale);
+    ctx.globalAlpha = a;
+    ctx.translate(cw / 2, ch * 0.30);
+    ctx.scale(1 + (1 - a) * 0.5, 1 + (1 - a) * 0.5);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = '900 76px Inter, system-ui, sans-serif';
+    ctx.font = '900 72px Inter, system-ui, sans-serif';
     ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(0,0,0,0.65)';
-    ctx.strokeText(txt, 0, 0);
-    ctx.fillStyle = n > 0 ? '#ffd166' : '#4ade80';
-    ctx.fillText(txt, 0, 0);
+    ctx.strokeText('VAI!', 0, 0);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillText('VAI!', 0, 0);
     ctx.restore();
   }
 
@@ -387,6 +432,7 @@ function render(now, dt) {
 /* ---------------- HUD ---------------- */
 const el = id => document.getElementById(id);
 let hudAcc = 0;
+let hudBottom = 56;   /* onde o painel do topo termina, em px de CSS */
 
 function updateHudStatic() {
   el('hud-track').textContent = Game.trackDef.name;
@@ -401,8 +447,25 @@ function updateHudStatic() {
   el('btn-gas').classList.toggle('hidden', !!Game.settings.autoGas);
 }
 
+/* As cinco luzes acendem uma a uma; quando TODAS apagam, é a largada -
+   é assim na F1, e funciona melhor que um 3-2-1 porque a largada é o
+   instante em que a tela escurece, não um número aparecendo. */
+function updateStartLights() {
+  const box = el('start-lights');
+  if (!box) return;
+  const ativo = Game.state === 'countdown';
+  box.classList.toggle('hidden', !ativo);
+  if (!ativo) return;
+  const total = (Game.mode === 'race' || Game.mode === 'story') ? 3.6 : 2.2;
+  const passou = total - Game.countdown;
+  const acesas = clamp(Math.floor((passou - 0.25) / 0.45) + 1, 0, 5);
+  const luzes = box.children;
+  for (let i = 0; i < luzes.length; i++) luzes[i].classList.toggle('on', i < acesas);
+}
+
 function hudTick(dt) {
   const G = Game;
+  updateStartLights();
   if (!G.player || (G.state !== 'racing' && G.state !== 'countdown' && G.state !== 'over')) return;
   if (G.toast.life > 0) G.toast.life -= dt;
   if (G.driftPop.life > 0) G.driftPop.life -= dt;
@@ -417,8 +480,12 @@ function hudTick(dt) {
   if (hudAcc < 0.08) return;
   hudAcc = 0;
 
+  const barra = document.querySelector('.hud-bar');
+  if (barra) hudBottom = barra.getBoundingClientRect().bottom;
+
   const r = rec(G.trackDef.id);
   el('hud-speed').textContent = Math.round(p.speed * 0.62);
+  el('hud-speed-bar').style.width = Math.round(clamp(p.speed / p.spec.top, 0, 1) * 100) + '%';
   el('hud-lap').textContent = Math.min(p.lap + 1, G.totalLaps) + (G.mode === 'race' ? '/' + G.totalLaps : '');
   el('hud-time').textContent = G.mode === 'drift'
     ? Math.max(0, G.driftTimeLeft).toFixed(1) + 's'

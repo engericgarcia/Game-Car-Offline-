@@ -63,6 +63,12 @@ O gás e o freio são pedais com curso: ao encostar, a placa gira no eixo de cim
 e afunda no alojamento, acendendo. No Android o aparelho ainda dá um toque de
 vibração — curto no gás, mais firme no freio.
 
+Dá para **arrastar o polegar de ◀ para ▶ sem levantar o dedo** — a direção
+troca no meio do caminho.
+
+A largada usa as **cinco luzes** da F1: elas acendem uma a uma e a corrida
+começa quando todas apagam.
+
 **O segredo do drift:** chegue rápido, segure **DRIFT** na entrada da curva e
 mantenha o **GÁS** durante a derrapagem. Quanto mais tempo atravessado, maior o
 multiplicador de pontos. Sair da pista zera o combo.

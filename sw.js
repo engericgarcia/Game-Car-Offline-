@@ -1,8 +1,8 @@
 /* Service worker: guarda tudo no cache para o jogo abrir sem internet */
 /* Ao editar o jogo, suba o número desta versão (e o ?v= no index.html)
    para o celular baixar os arquivos novos na próxima abertura. */
-const CACHE = 'driftgp-v14';
-const V = 'v=14';
+const CACHE = 'driftgp-v17';
+const V = 'v=17';
 const ASSETS = [
   './',
   './index.html',
