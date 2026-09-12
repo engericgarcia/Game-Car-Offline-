@@ -8,7 +8,8 @@ do gerenciador de arquivos do celular, sem precisar de servidor.
 import base64, os, re, pathlib
 
 ROOT = pathlib.Path(__file__).parent
-SCRIPTS = ['utils', 'tracks', 'car', 'ai', 'audio', 'render', 'game']
+SCRIPTS = ['utils', 'teams', 'tracks', 'car', 'ai', 'audio',
+           'render', 'season', 'game']   # a ordem importa: game.js lê TEAMS ao carregar
 
 def read(p):
     return (ROOT / p).read_text(encoding='utf-8')

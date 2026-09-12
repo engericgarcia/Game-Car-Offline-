@@ -1,7 +1,7 @@
 # Drift GP 🏁
 
-Jogo de corrida **offline** para celular, com visão de cima, carros que derrapam
-e circuitos inspirados nos da Fórmula 1. Roda direto no navegador do celular e,
+Jogo de corrida **offline** para celular: visão de cima, monopostos que derrapam,
+circuitos com o traçado dos originais da Fórmula 1 e um campeonato completo. Roda direto no navegador do celular e,
 depois de instalado na tela de início, funciona **sem internet**.
 
 Feito com HTML5 + Canvas puro: sem bibliotecas, sem loja de aplicativos,
@@ -82,13 +82,22 @@ derrapa) e a *ajuda de contra-esterço*, que endireita o carro sozinho.
 
 Cada pista é larga o bastante para os seis carros correrem lado a lado.
 
-**4 carros** com características diferentes: `Sprinter` (equilibrado),
-`Kaido AE` (rei do drift), `Bruto V8` (potência) e `Kappa GT` (aderência).
+**10 equipes**, cada uma com dois pilotos e um carro de desempenho próprio —
+da `Scuderia Rossa` (a mais rápida) à `Verde Lima` (a mais lenta, e por isso o
+modo difícil do jogo). As equipes são inspiradas nas da F1; os nomes são
+próprios do projeto e ficam todos em [`js/teams.js`](js/teams.js).
 
-**3 modos** — Corrida (até 7 adversários com IA), Contra-relógio e Ataque de Drift
-(90 segundos para fazer o máximo de pontos).
+**4 modos:**
 
-Recordes de volta e de drift ficam salvos no aparelho, por pista.
+- **Modo História** — escolha uma equipe e dispute um campeonato de 5 GPs.
+  Pontuação 25-18-15-12-10-8-6-4-2-1, classificação de pilotos e de
+  construtores, e a ordem de largada de cada etapa sai da classificação do
+  campeonato. Quem lidera larga na pole.
+- **Corrida rápida** — até 19 adversários, número de voltas ajustável.
+- **Contra-relógio** — sozinho na pista, atrás do recorde.
+- **Ataque de drift** — 90 segundos para somar o máximo de pontos.
+
+A temporada, os recordes de volta e os de drift ficam salvos no aparelho.
 
 ---
 
@@ -98,13 +107,16 @@ Recordes de volta e de drift ficam salvos no aparelho, por pista.
 index.html              telas, HUD e botões de toque
 style.css               interface (respeita o notch do iPhone)
 js/utils.js             matemática, splines e suavização de traçado
+js/teams.js             as 10 equipes, pilotos e desempenho dos carros
 js/tracks.js            os 5 circuitos + geometria derivada
 js/car.js               física de drift
-js/ai.js                pilotos do computador
-js/render.js            desenho do circuito, carros e efeitos
+js/ai.js                pilotos do computador e montagem do grid
+js/render.js            circuito, cenário, monopostos e efeitos
+js/season.js            campeonato do modo história
 js/game.js              laço principal, telas e regras
 sw.js                   cache offline (service worker)
 build.py                gera dist/index.html (arquivo único)
+bump.py                 sobe a versão dos arquivos (cache do celular)
 tools_make_icons.py     gera os ícones PNG do app
 ```
 
@@ -125,10 +137,19 @@ carro: é essa defasagem de um quadro que faz a traseira sair.
 
 ### Mexendo no jogo
 
-Depois de editar qualquer arquivo, suba a versão em **dois** lugares para o
-celular não continuar com a cópia antiga em cache:
+Depois de editar qualquer arquivo, suba a versão — senão o celular (e até o
+navegador do computador) continua com a cópia antiga em cache:
 
-- `index.html` — os `?v=N` nas tags `<link>` e `<script>`
-- `sw.js` — as constantes `CACHE` e `V`
+```bash
+python3 bump.py
+```
 
-Para testar sem cache nenhum, abra com `?nosw=1` na URL.
+Isso troca o `?v=N` no `index.html` e as constantes `CACHE` e `V` no `sw.js`,
+que é o que faz o aparelho baixar os arquivos novos. Para testar sem cache
+nenhum, abra com `?nosw=1` na URL.
+
+**Memória.** O circuito inteiro é desenhado uma vez numa textura em cache.
+Como as pistas são grandes, a nitidez dessa textura se ajusta a um orçamento
+de pixels (`LAYER_PIXEL_BUDGET` em [`js/render.js`](js/render.js)) para ficar
+em ~25 MB por pista. Subir esse número dá zebras mais nítidas e gasta mais
+memória do aparelho.

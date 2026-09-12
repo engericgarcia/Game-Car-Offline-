@@ -6,36 +6,11 @@
    ============================================================ */
 'use strict';
 
-const CAR_TYPES = [
-  {
-    id: 'sprinter', name: 'Sprinter', tag: 'Equilibrado',
-    color: '#e5453a', accent: '#ffd166',
-    engine: 560, top: 405, grip: 0.855, driftGrip: 0.971, turn: 3.05, brake: 780,
-    stats: [3, 3, 3]
-  },
-  {
-    id: 'kaido', name: 'Kaido AE', tag: 'Rei do drift',
-    color: '#f2f2f2', accent: '#111318',
-    engine: 505, top: 372, grip: 0.885, driftGrip: 0.982, turn: 3.45, brake: 720,
-    stats: [2, 4, 5]
-  },
-  {
-    id: 'bruto', name: 'Bruto V8', tag: 'Muita potência',
-    color: '#2f6df6', accent: '#f2f2f2',
-    engine: 645, top: 452, grip: 0.872, driftGrip: 0.976, turn: 2.72, brake: 810,
-    stats: [5, 2, 4]
-  },
-  {
-    id: 'kappa', name: 'Kappa GT', tag: 'Muita aderência',
-    color: '#28c76f', accent: '#0d2b1a',
-    engine: 545, top: 418, grip: 0.815, driftGrip: 0.958, turn: 3.2, brake: 900,
-    stats: [3, 5, 2]
-  }
-];
-
-function carTypeById(id) { return CAR_TYPES.find(c => c.id === id) || CAR_TYPES[0]; }
-
-const CAR_LEN = 30, CAR_WID = 16;
+/* proporções de um monoposto visto de cima: comprido e estreito,
+   com as rodas para fora da carroceria */
+const CAR_LEN = 34, CAR_WID = 20;
+const WHEEL_FX = 8.5, WHEEL_FY = 8.6;    /* eixo dianteiro */
+const WHEEL_RX = -9.5, WHEEL_RY = 9.2;   /* eixo traseiro  */
 
 class Car {
   constructor(spec, track, isPlayer) {
@@ -189,8 +164,8 @@ class Car {
   /* posições dos 4 pneus no mundo (para marcas e fumaça) */
   wheelPos(front, right) {
     const ca = Math.cos(this.angle), sa = Math.sin(this.angle);
-    const lx = front ? CAR_LEN * 0.32 : -CAR_LEN * 0.32;
-    const ly = right ? CAR_WID * 0.44 : -CAR_WID * 0.44;
+    const lx = front ? WHEEL_FX : WHEEL_RX;
+    const ly = (right ? 1 : -1) * (front ? WHEEL_FY : WHEEL_RY);
     return [this.x + lx * ca - ly * sa, this.y + lx * sa + ly * ca];
   }
 }
@@ -205,7 +180,7 @@ function resolveCarCollisions(cars, trackN) {
       if (Math.min(dp, trackN - dp) > trackN * 0.08) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const d = Math.hypot(dx, dy);
-      const minD = 25;
+      const minD = 27;
       if (d > minD || d < 0.0001) continue;
       const ux = dx / d, uy = dy / d;
       const push = (minD - d) * 0.5;

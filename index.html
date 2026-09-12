@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
@@ -62,12 +62,13 @@
         <span>CIRCUITO</span><b id="menu-track">—</b><em id="menu-record">—</em>
       </button>
       <button id="btn-open-cars" class="pick-btn">
-        <span>CARRO</span><b id="menu-car">—</b><em>trocar</em>
+        <span>EQUIPE</span><b id="menu-car">—</b><em>trocar</em>
       </button>
     </div>
 
     <div class="modes">
-      <button id="btn-play-race" class="big primary">🏁 Corrida</button>
+      <button id="btn-play-story" class="big primary story">🏆 Modo História</button>
+      <button id="btn-play-race" class="big">🏁 Corrida rápida</button>
       <button id="btn-play-time" class="big">⏱ Contra-relógio</button>
       <button id="btn-play-drift" class="big">💨 Ataque de drift</button>
     </div>
@@ -89,7 +90,7 @@
 <!-- ============ CARROS ============ -->
 <section id="screen-car" class="screen hidden">
   <div class="panel wide">
-    <h2>Escolha o carro</h2>
+    <h2 id="car-title">Escolha a equipe</h2>
     <div id="car-list" class="grid"></div>
     <button class="ghost" data-back>← Voltar</button>
   </div>
@@ -105,12 +106,36 @@
       <input type="checkbox" id="set-assist"></label>
     <label class="opt"><span>Som<em>motor e derrapagem</em></span>
       <input type="checkbox" id="set-sound"></label>
-    <label class="opt range"><span>Adversários<em>na corrida</em></span>
-      <input type="range" id="set-opponents" min="0" max="7" step="1"><b id="set-opponents-val">5</b></label>
+    <label class="opt range"><span>Adversários<em>até 19 carros no grid</em></span>
+      <input type="range" id="set-opponents" min="0" max="19" step="1"><b id="set-opponents-val">9</b></label>
+    <label class="opt range"><span>Voltas<em>0 = o padrão de cada pista</em></span>
+      <input type="range" id="set-laps" min="0" max="20" step="1"><b id="set-laps-val">padrão</b></label>
     <label class="opt range"><span>Dificuldade<em>ritmo da IA</em></span>
       <input type="range" id="set-difficulty" min="0" max="2" step="1"><b id="set-difficulty-val">Normal</b></label>
     <button id="btn-reset-records" class="ghost danger">Apagar recordes</button>
     <button class="ghost" data-back>← Voltar</button>
+  </div>
+</section>
+
+<!-- ============ TEMPORADA ============ -->
+<section id="screen-season" class="screen hidden">
+  <div class="panel wide">
+    <div class="season-head">
+      <div class="season-id">
+        <h2 id="season-title">Temporada</h2>
+        <p class="tagline" id="season-sub"></p>
+      </div>
+      <div class="season-badge"><span>SUA POSIÇÃO</span><b id="season-pos">—</b></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="cal">Calendário</button>
+      <button class="tab" data-tab="drv">Pilotos</button>
+      <button class="tab" data-tab="tea">Equipes</button>
+    </div>
+    <div id="season-body" class="season-body"></div>
+    <button id="btn-season-race" class="big primary">Correr</button>
+    <button id="btn-season-quit" class="ghost">Menu principal</button>
+    <button id="btn-season-abandon" class="ghost danger">Abandonar temporada</button>
   </div>
 </section>
 
@@ -130,17 +155,20 @@
     <h2 id="results-title">Fim</h2>
     <p class="tagline" id="results-sub"></p>
     <div id="results-body" class="rows"></div>
+    <div id="results-class" class="classif hidden"></div>
     <button id="btn-results-again" class="big primary">Correr de novo</button>
     <button id="btn-results-menu" class="ghost">Menu</button>
   </div>
 </section>
 
-<script src="js/utils.js?v=3"></script>
-<script src="js/tracks.js?v=3"></script>
-<script src="js/car.js?v=3"></script>
-<script src="js/ai.js?v=3"></script>
-<script src="js/audio.js?v=3"></script>
-<script src="js/render.js?v=3"></script>
-<script src="js/game.js?v=3"></script>
+<script src="js/utils.js?v=7"></script>
+<script src="js/teams.js?v=7"></script>
+<script src="js/tracks.js?v=7"></script>
+<script src="js/car.js?v=7"></script>
+<script src="js/ai.js?v=7"></script>
+<script src="js/audio.js?v=7"></script>
+<script src="js/render.js?v=7"></script>
+<script src="js/season.js?v=7"></script>
+<script src="js/game.js?v=7"></script>
 </body>
 </html>

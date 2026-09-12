@@ -53,6 +53,83 @@ function curveIntensity(track, lo, hi) {
   return sm;
 }
 
+/* ---------- cenário ---------- */
+
+/* faixas de grama cortada, na diagonal, como nos autódromos de verdade */
+function mownStripes(ctx, b, angle, width) {
+  ctx.save();
+  ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+  ctx.rotate(angle);
+  const span = Math.hypot(b.w, b.h);
+  ctx.fillStyle = 'rgba(255,255,255,0.035)';
+  for (let x = -span; x < span; x += width * 2) ctx.fillRect(x, -span / 2, width, span);
+  ctx.restore();
+}
+
+function drawTree(ctx, x, y, r, rng) {
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath();
+  ctx.ellipse(x + r * 0.30, y + r * 0.34, r * 0.92, r * 0.78, 0, 0, TAU);
+  ctx.fill();
+  /* copa: três círculos sobrepostos, do escuro para o claro */
+  const tone = rng();
+  const dark = tone > 0.5 ? '#1d3d1c' : '#213f22';
+  const mid = tone > 0.5 ? '#2a5a26' : '#2f5f2c';
+  const lit = tone > 0.5 ? '#3d7a33' : '#44813a';
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.fillStyle = mid;
+  ctx.beginPath(); ctx.arc(x - r * 0.14, y - r * 0.16, r * 0.80, 0, TAU); ctx.fill();
+  ctx.fillStyle = lit;
+  ctx.beginPath(); ctx.arc(x - r * 0.28, y - r * 0.30, r * 0.48, 0, TAU); ctx.fill();
+}
+
+/* arquibancada de frente para a pista */
+function drawGrandstand(ctx, p, side, len, depth, rng) {
+  const nx = p.nx * side, ny = p.ny * side;
+  ctx.save();
+  ctx.translate(p.x + nx * (depth * 0.5 + 8), p.y + ny * (depth * 0.5 + 8));
+  ctx.rotate(Math.atan2(p.ty, p.tx));
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  ctx.fillRect(-len / 2 + 3, -depth / 2 + 4, len, depth);
+  ctx.fillStyle = '#3b424d';
+  ctx.fillRect(-len / 2, -depth / 2, len, depth);
+  const rows = 5, seats = Math.max(4, Math.floor(len / 5));
+  for (let r = 0; r < rows; r++) {
+    for (let s = 0; s < seats; s++) {
+      if (rng() > 0.82) continue;
+      const sx = -len / 2 + 3 + s * (len - 6) / seats;
+      const sy = -depth / 2 + 4 + r * (depth - 8) / rows;
+      ctx.fillStyle = ['#d8dde4', '#9aa5b4', '#c05a4e', '#4e7bc0', '#d9b44a'][Math.floor(rng() * 5)];
+      ctx.fillRect(sx, sy, 2.6, 2.6);
+    }
+  }
+  ctx.fillStyle = 'rgba(24,28,34,0.88)';
+  ctx.fillRect(-len / 2 - 2, -depth / 2 - 5, len + 4, 6);
+  ctx.restore();
+}
+
+/* caixas brancas do grid de largada, atrás da linha de chegada */
+function drawStartGrid(ctx, track, slots) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(240,244,248,0.7)';
+  ctx.fillStyle = 'rgba(240,244,248,0.09)';
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < slots; i++) {
+    const p = track.atArc(track.length - (GRID_BACK + i * GRID_GAP));
+    /* a caixa só é pintada em trecho reto - em curva ficaria torta */
+    if (Math.abs(p.curv) > 0.0022) continue;
+    const lat = (i % 2 === 0 ? -1 : 1) * track.half * 0.34;
+    ctx.save();
+    ctx.translate(p.x + p.nx * lat, p.y + p.ny * lat);
+    ctx.rotate(Math.atan2(p.ty, p.tx));
+    ctx.beginPath(); ctx.rect(-17, -11, 34, 22);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function buildTrackLayer(track) {
   const b = track.bounds;
   const sc = layerScale(b, LAYER_PIXEL_BUDGET, 0.92, 2);
@@ -91,6 +168,7 @@ function buildTrackLayer(track) {
 
   const rng = makeRng(def.id.length * 7919 + 13);
   ctx.save();
+  if (!def.urban) mownStripes(ctx, b, 0.42, 46);
   const blobs = clamp(Math.round(b.w * b.h / 900), 1500, 9000);
   for (let i = 0; i < blobs; i++) {
     const x = b.x + rng() * b.w, y = b.y + rng() * b.h, r = 2.5 + rng() * 9;
@@ -98,6 +176,24 @@ function buildTrackLayer(track) {
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   }
   ctx.restore();
+
+  /* ---------- árvores, em bosques fora da área de corrida ---------- */
+  if (!def.urban) {
+    const safe = track.half + track.runoff + 26;
+    const groves = clamp(Math.round(b.w * b.h / 26000), 40, 260);
+    for (let g = 0; g < groves; g++) {
+      const gx = b.x + rng() * b.w, gy = b.y + rng() * b.h;
+      if (track.surfaceAt(gx, gy).dist < safe + 40) continue;
+      const count = 4 + Math.floor(rng() * 9);
+      const spread = 34 + rng() * 52;
+      for (let i = 0; i < count; i++) {
+        const tx = gx + (rng() - 0.5) * spread * 2;
+        const ty = gy + (rng() - 0.5) * spread * 2;
+        if (track.surfaceAt(tx, ty).dist < safe) continue;
+        drawTree(ctx, tx, ty, 7 + rng() * 11, rng);
+      }
+    }
+  }
 
   if (def.urban) {
     /* quarteirões / prédios em volta do circuito de rua */
@@ -223,8 +319,16 @@ function buildTrackLayer(track) {
     }
   }
 
-  /* ---------- linha de largada/chegada ---------- */
+  /* ---------- largada: caixas do grid, linha e arquibancadas ---------- */
+  drawStartGrid(ctx, track, 20);
   drawStartLine(ctx, track);
+
+  const standSpots = [40, -70, 150, 260];
+  for (const off of standSpots) {
+    const p = track.atArc((track.length + off * TRACK_SPACING) % track.length);
+    drawGrandstand(ctx, p, 1, 150, 40, rng);
+    if (off === 40 || off === -70) drawGrandstand(ctx, p, -1, 130, 34, rng);
+  }
 
   return { canvas: cv, bounds: b, bg: outside };
 }
@@ -344,69 +448,138 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* Monoposto visto de cima. Peças, da frente para trás: asa dianteira,
+   bico, rodas dianteiras, cockpit com halo, sidepods, capô do motor,
+   rodas traseiras e asa traseira. */
 function drawCar(ctx, car) {
-  const L = CAR_LEN, W = CAR_WID;
+  const sp = car.spec;
+  const body = sp.color, trim = sp.accent || '#f2f4f7', wing = sp.wing || '#1a1d22';
+
   ctx.save();
   ctx.translate(car.x, car.y);
-
-  /* sombra */
-  ctx.save();
   ctx.rotate(car.angle);
-  ctx.fillStyle = 'rgba(0,0,0,0.30)';
-  roundRectPath(ctx, -L / 2 + 2, -W / 2 + 3, L, W, 5);
-  ctx.fill();
+
+  /* sombra projetada */
+  ctx.save();
+  ctx.translate(2.5, 3.5);
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  ctx.beginPath();
+  ctx.moveTo(17, -2); ctx.lineTo(17, 2); ctx.lineTo(-17, 5); ctx.lineTo(-17, -5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillRect(-13, -10, 26, 20);
   ctx.restore();
 
-  ctx.rotate(car.angle);
+  const steer = car.steerAngle * 0.45;
 
-  /* rodas */
-  const steer = car.steerAngle * 0.5;
-  ctx.fillStyle = '#16181d';
-  const wheels = [[L * 0.30, W * 0.50, steer], [L * 0.30, -W * 0.50, steer],
-  [-L * 0.30, W * 0.52, 0], [-L * 0.30, -W * 0.52, 0]];
-  for (const w of wheels) {
+  /* ---- rodas (desenhadas antes da carroceria) ---- */
+  function wheel(x, y, len, wid, rot) {
     ctx.save();
-    ctx.translate(w[0], w[1]);
-    ctx.rotate(w[2]);
-    ctx.fillRect(-4.5, -2.6, 9, 5.2);
+    ctx.translate(x, y);
+    if (rot) ctx.rotate(rot);
+    ctx.fillStyle = '#15171c';
+    roundRectPath(ctx, -len / 2, -wid / 2, len, wid, 1.6);
+    ctx.fill();
+    /* faixa clara do pneu + brilho */
+    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+    ctx.fillRect(-len / 2 + 0.8, -wid / 2 + 0.7, len - 1.6, 0.9);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(-len / 2 + 0.8, wid / 2 - 1.6, len - 1.6, 0.9);
     ctx.restore();
   }
+  wheel(WHEEL_FX, -WHEEL_FY, 7.6, 4.4, steer);
+  wheel(WHEEL_FX, WHEEL_FY, 7.6, 4.4, steer);
+  wheel(WHEEL_RX, -WHEEL_RY, 8.6, 5.6, 0);
+  wheel(WHEEL_RX, WHEEL_RY, 8.6, 5.6, 0);
 
-  /* carroceria */
-  const g = ctx.createLinearGradient(0, -W / 2, 0, W / 2);
-  g.addColorStop(0, car.spec.color);
-  g.addColorStop(0.5, car.spec.color);
-  g.addColorStop(1, 'rgba(0,0,0,0.28)');
-  ctx.fillStyle = g;
-  roundRectPath(ctx, -L / 2, -W / 2, L, W, 5);
+  /* ---- asa dianteira ---- */
+  ctx.fillStyle = wing;
+  roundRectPath(ctx, 13.2, -10.4, 4.2, 20.8, 1.2);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-  ctx.lineWidth = 1.2;
+  ctx.fillStyle = trim;
+  ctx.fillRect(16.4, -10.4, 1.1, 20.8);
+  /* derivas laterais */
+  ctx.fillStyle = body;
+  ctx.fillRect(12.6, -10.6, 3.2, 1.7);
+  ctx.fillRect(12.6, 8.9, 3.2, 1.7);
+
+  /* ---- bico ---- */
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(15.2, -1.5); ctx.lineTo(15.2, 1.5);
+  ctx.lineTo(5.5, 3.6); ctx.lineTo(5.5, -3.6);
+  ctx.closePath(); ctx.fill();
+
+  /* ---- sidepods ---- */
+  const pods = ctx.createLinearGradient(0, -9, 0, 9);
+  pods.addColorStop(0, 'rgba(0,0,0,0.30)');
+  pods.addColorStop(0.28, body);
+  pods.addColorStop(0.72, body);
+  pods.addColorStop(1, 'rgba(0,0,0,0.30)');
+  ctx.fillStyle = pods;
+  ctx.beginPath();
+  ctx.moveTo(3.6, -5.2); ctx.lineTo(1.2, -7.4); ctx.lineTo(-7.5, -6.6);
+  ctx.lineTo(-10.5, -4.2); ctx.lineTo(-10.5, 4.2); ctx.lineTo(-7.5, 6.6);
+  ctx.lineTo(1.2, 7.4); ctx.lineTo(3.6, 5.2);
+  ctx.closePath(); ctx.fill();
+
+  /* entradas de ar dos sidepods */
+  ctx.fillStyle = 'rgba(10,12,16,0.55)';
+  roundRectPath(ctx, 0.4, -7.0, 2.6, 2.2, 0.8); ctx.fill();
+  roundRectPath(ctx, 0.4, 4.8, 2.6, 2.2, 0.8); ctx.fill();
+
+  /* ---- chassi central e capô do motor ---- */
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(5.5, -3.6); ctx.lineTo(5.5, 3.6);
+  ctx.lineTo(-13.5, 2.6); ctx.lineTo(-13.5, -2.6);
+  ctx.closePath(); ctx.fill();
+
+  /* faixa da equipe no eixo do carro */
+  ctx.fillStyle = trim;
+  ctx.fillRect(-13.5, -1.0, 19, 2.0);
+
+  /* ---- cockpit e halo ---- */
+  ctx.fillStyle = 'rgba(12,14,19,0.92)';
+  roundRectPath(ctx, -2.6, -2.9, 6.4, 5.8, 2.2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(150,200,235,0.30)';
+  roundRectPath(ctx, -1.6, -2.1, 4.2, 4.2, 1.6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,22,28,0.9)';
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.arc(1.0, 0, 3.9, -Math.PI * 0.72, Math.PI * 0.72);
   ctx.stroke();
 
-  /* cabine e vidros */
-  ctx.fillStyle = 'rgba(15,18,24,0.85)';
-  roundRectPath(ctx, -L * 0.16, -W * 0.34, L * 0.34, W * 0.68, 3);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(120,190,230,0.35)';
-  roundRectPath(ctx, L * 0.06, -W * 0.30, L * 0.10, W * 0.60, 2);
-  ctx.fill();
+  /* tomada de ar acima do piloto */
+  ctx.fillStyle = 'rgba(10,12,16,0.75)';
+  ctx.beginPath();
+  ctx.moveTo(-3.4, -2.2); ctx.lineTo(-3.4, 2.2);
+  ctx.lineTo(-6.4, 1.5); ctx.lineTo(-6.4, -1.5);
+  ctx.closePath(); ctx.fill();
 
-  /* detalhes: capô, asa traseira, faróis */
-  ctx.fillStyle = car.spec.accent;
-  ctx.fillRect(-L / 2 - 1.5, -W * 0.46, 3, W * 0.92);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillRect(L / 2 - 2.5, -W * 0.38, 2, 3.2);
-  ctx.fillRect(L / 2 - 2.5, W * 0.38 - 3.2, 2, 3.2);
+  /* ---- asa traseira ---- */
+  ctx.fillStyle = wing;
+  roundRectPath(ctx, -17.6, -9.2, 4.0, 18.4, 1.2);
+  ctx.fill();
+  ctx.fillStyle = trim;
+  ctx.fillRect(-17.6, -9.2, 1.1, 18.4);
+  ctx.fillStyle = body;
+  ctx.fillRect(-17.8, -9.4, 4.4, 1.6);
+  ctx.fillRect(-17.8, 7.8, 4.4, 1.6);
+
+  /* luz de chuva / freio */
   if (car.brakeGlow > 0) {
-    ctx.fillStyle = 'rgba(255,60,40,' + car.brakeGlow.toFixed(2) + ')';
-    ctx.fillRect(-L / 2, -W * 0.40, 2.5, W * 0.80);
+    ctx.fillStyle = 'rgba(255,58,40,' + (0.55 + car.brakeGlow * 0.45).toFixed(2) + ')';
+    roundRectPath(ctx, -16.2, -1.6, 1.8, 3.2, 0.8);
+    ctx.fill();
   }
 
+  /* piscada branca ao bater */
   if (car.hitTimer > 0) {
-    ctx.globalAlpha = clamp(car.hitTimer * 3, 0, 0.6);
+    ctx.globalAlpha = clamp(car.hitTimer * 3, 0, 0.65);
     ctx.fillStyle = '#fff';
-    roundRectPath(ctx, -L / 2, -W / 2, L, W, 5);
+    roundRectPath(ctx, -17, -10, 34, 20, 3);
     ctx.fill();
     ctx.globalAlpha = 1;
   }

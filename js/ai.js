@@ -5,9 +5,6 @@
    ============================================================ */
 'use strict';
 
-const AI_NAMES = ['R. Prata', 'D. Kowalski', 'M. Tanaka', 'L. Duarte', 'F. Rossi',
-  'A. Okafor', 'V. Petrov', 'C. Mendes', 'J. Halvorsen', 'B. Nakano'];
-
 class AIDriver {
   constructor(car, skill, lane) {
     this.car = car;
@@ -93,29 +90,28 @@ class AIDriver {
   }
 }
 
-function makeGrid(track, playerSpec, opponentCount, playerSlot, difficulty) {
+/* Monta o grid a partir de uma lista de inscrições já na ordem de
+   largada (a primeira é a pole). Uma delas tem isPlayer. */
+function makeGrid(track, entries, difficulty) {
   const cars = [], ais = [];
-  const usedNames = AI_NAMES.slice().sort(() => Math.random() - 0.5);
-  const total = opponentCount + 1;
-  const specs = CAR_TYPES;
-  for (let i = 0; i < total; i++) {
-    const isPlayer = i === playerSlot;
-    const spec = isPlayer ? playerSpec : Object.assign({}, specs[(i * 3 + 1) % specs.length], {
-      color: AI_COLORS[i % AI_COLORS.length]
-    });
-    const car = new Car(spec, track, isPlayer);
-    const arc = -(58 + i * 50);
-    const lateral = (i % 2 === 0 ? -1 : 1) * track.half * 0.38;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const car = new Car(e, track, e.isPlayer);
+    const arc = -(GRID_BACK + i * GRID_GAP);
+    const lateral = (i % 2 === 0 ? -1 : 1) * track.half * 0.34;
     car.placeAtArc((track.length + arc) % track.length, lateral);
-    car.name = isPlayer ? 'VOCÊ' : usedNames[i % usedNames.length];
+    car.name = e.name;
+    car.entry = e;
+    car.gridPos = i + 1;
     cars.push(car);
-    if (!isPlayer) {
-      const base = 0.90 + difficulty * 0.055;
-      const skill = base + (Math.random() - 0.5) * 0.05;
-      ais.push(new AIDriver(car, skill, (Math.random() - 0.5) * 0.44));
+    if (!e.isPlayer) {
+      /* a força da equipe pesa, mas o dia do piloto pesa também: sem esta
+         variação as corridas terminam sempre na mesma ordem das equipes */
+      const base = (0.90 + difficulty * 0.055) * (e.team ? e.team.tier : 1);
+      const forma = (Math.random() - 0.5) * 0.055;
+      ais.push(new AIDriver(car, base + forma, (Math.random() - 0.5) * 0.44));
     }
   }
   return { cars: cars, ais: ais };
 }
 
-const AI_COLORS = ['#ff8c1a', '#8b5cf6', '#00c2d1', '#ec4899', '#facc15', '#94a3b8', '#22c55e'];

@@ -133,6 +133,44 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
 .opt.range input[type=range]{width:110px;accent-color:var(--acc)}
 .opt.range b{min-width:52px;text-align:right;font-size:13px;color:var(--acc)}
 
+/* ---------------- temporada ---------------- */
+.big.story{background:linear-gradient(180deg,#ffe08a,#f0b429);color:#241a02;border-color:#f0b429}
+.season-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.season-head h2{margin:0;text-align:left}
+.season-head .tagline{margin:2px 0 0;text-align:left}
+.season-badge{background:var(--panel2);border:1px solid var(--line);border-radius:14px;
+  padding:8px 12px;text-align:right;flex:0 0 auto}
+.season-badge span{display:block;font-size:8px;letter-spacing:1.4px;color:var(--dim)}
+.season-badge b{display:block;font-size:22px;color:var(--acc);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{flex:1;padding:9px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);
+  font-size:13px;font-weight:700;color:var(--dim)}
+.tab.active{color:var(--txt);border-color:var(--acc);background:#262b33}
+.season-body{max-height:46vh;overflow-y:auto;margin-bottom:14px;-webkit-overflow-scrolling:touch}
+.round{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;
+  background:var(--panel2);border:1px solid var(--line);margin-bottom:7px}
+.round.next{border-color:var(--acc)}
+.round.done{opacity:.62}
+.round-n{width:26px;height:26px;border-radius:8px;background:#333a45;display:grid;place-items:center;
+  font-size:11px;font-weight:800;flex:0 0 auto}
+.round.next .round-n{background:var(--acc);color:#241a02}
+.round-info{flex:1;min-width:0}
+.round-info b{display:block;font-size:14px}
+.round-info span{display:block;font-size:11px;color:var(--dim)}
+.round-res{font-size:13px;font-weight:800;color:var(--acc);flex:0 0 auto}
+.stand{display:flex;align-items:center;gap:9px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px}
+.stand.me{background:#262b33;border-radius:10px;border-bottom-color:transparent}
+.stand .pos{width:22px;color:var(--dim);font-variant-numeric:tabular-nums;flex:0 0 auto}
+.stand .dot{width:4px;height:22px;border-radius:2px;flex:0 0 auto}
+.stand .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stand .who em{font-style:normal;color:var(--dim);font-size:11px}
+.stand .pts{font-weight:800;font-variant-numeric:tabular-nums;flex:0 0 auto}
+.classif{max-height:38vh;overflow-y:auto;margin-bottom:14px}
+.champion{text-align:center;padding:14px 0 4px}
+.champion .cup{font-size:44px;line-height:1}
+.champion b{display:block;font-size:19px;margin-top:6px}
+.champion span{display:block;font-size:13px;color:var(--dim);margin-top:2px}
+
 /* ---------------- resultados ---------------- */
 .rows{margin:4px 0 16px}
 .rows .row{display:flex;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:14px}

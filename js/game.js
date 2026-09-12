@@ -7,14 +7,17 @@ const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
   mode: 'race',            /* race | time | drift */
   trackDef: TRACK_DEFS[0],
-  carSpec: CAR_TYPES[0],
+  teamId: TEAMS[0].id,
   track: null, layer: null, marks: null, parts: null,
   cars: [], ais: [], player: null,
   cam: { x: 0, y: 0, zoom: 1 },
   clock: 0, countdown: 0, raceTime: 0, driftTimeLeft: 0,
   totalLaps: 3, finishOrder: [],
-  settings: { autoGas: false, assist: true, sound: true, opponents: 5, difficulty: 1 },
+  settings: { autoGas: false, assist: true, sound: true, opponents: 9, difficulty: 1, laps: 0 },
   records: {},
+  teamPickFor: 'quick',      /* de onde a tela de equipes foi aberta */
+  seasonTab: 'cal',
+  lastPoints: null,
   toast: { text: '', life: 0 },
   driftPop: { text: '', life: 0 }
 };
@@ -24,11 +27,16 @@ function loadStore() {
   try {
     const s = JSON.parse(localStorage.getItem('gc_settings') || '{}');
     Object.assign(Game.settings, s);
+    if (s.teamId && teamById(s.teamId).id === s.teamId) Game.teamId = s.teamId;
+    delete Game.settings.teamId;
     Game.records = JSON.parse(localStorage.getItem('gc_records') || '{}');
   } catch (e) { }
 }
 function saveSettings() {
-  try { localStorage.setItem('gc_settings', JSON.stringify(Game.settings)); } catch (e) { }
+  try {
+    const s = Object.assign({}, Game.settings, { teamId: Game.teamId });
+    localStorage.setItem('gc_settings', JSON.stringify(s));
+  } catch (e) { }
 }
 function saveRecords() {
   try { localStorage.setItem('gc_records', JSON.stringify(Game.records)); } catch (e) { }
@@ -116,24 +124,44 @@ function prepareTrack(def) {
   Game.parts = new Particles();
 }
 
+/* Quem está no grid, e em que ordem. */
+function buildEntries() {
+  if (Game.mode === 'story') return Season.gridOrder();
+  const team = teamById(Game.teamId);
+  const player = makeEntry(team, 0, true);
+  if (Game.mode !== 'race') return [player];
+
+  const others = [];
+  for (const t of TEAMS) {
+    for (let d = 0; d < t.drivers.length; d++) {
+      if (t.id === team.id && d === 0) continue;
+      others.push(makeEntry(t, d, false));
+    }
+  }
+  others.sort((a, b) => b.team.tier - a.team.tier);
+  const grid = others.slice(0, clamp(Game.settings.opponents, 0, others.length));
+  grid.push(player);            /* na corrida rápida o jogador larga por último */
+  return grid;
+}
+
 function startRace() {
   const def = Game.trackDef;
   if (!Game.track || Game.track.def.id !== def.id) prepareTrack(def);
   else { Game.marks = makeMarksLayer(Game.track); Game.parts = new Particles(); }
 
-  const opponents = Game.mode === 'race' ? Game.settings.opponents : 0;
-  const slot = opponents;                       /* jogador larga por último */
-  const g = makeGrid(Game.track, Game.carSpec, opponents, slot, Game.settings.difficulty);
+  const entries = buildEntries();
+  const g = makeGrid(Game.track, entries, Game.settings.difficulty);
   Game.cars = g.cars; Game.ais = g.ais;
-  Game.player = g.cars[slot];
+  Game.player = g.cars.find(c => c.isPlayer);
   Game.player.assist = Game.settings.assist ? 0.6 : 0.12;
   for (const c of Game.cars) { if (!c.isPlayer) c.assist = 0.5; }
 
-  Game.totalLaps = Game.mode === 'race' ? def.laps : (Game.mode === 'time' ? 99 : 99);
+  Game.totalLaps = (Game.mode === 'race' || Game.mode === 'story')
+    ? (Game.mode === 'story' ? def.laps : (Game.settings.laps || def.laps)) : 99;
   Game.finishOrder = [];
   Game.raceTime = 0;
   Game.driftTimeLeft = 90;
-  Game.countdown = Game.mode === 'race' ? 3.6 : 2.2;
+  Game.countdown = (Game.mode === 'race' || Game.mode === 'story') ? 3.6 : 2.2;
   Game.state = 'countdown';
   Game.clock = performance.now();
   Game.cam.x = Game.player.x; Game.cam.y = Game.player.y;
@@ -221,7 +249,7 @@ function simulate(dt, now) {
   G.parts.update(dt);
 
   /* fim de corrida */
-  if (G.state === 'racing' && G.mode === 'race') {
+  if (G.state === 'racing' && (G.mode === 'race' || G.mode === 'story')) {
     for (const c of G.cars) {
       if (!c.finished && c.lap > G.totalLaps) {
         c.finished = true;
@@ -244,6 +272,16 @@ function onLapDone(p) {
   }
 }
 
+/* Classificação final: quem cruzou, por tempo; o resto, por distância
+   percorrida no momento em que o jogador terminou. */
+function finishingOrder() {
+  return Game.cars.slice().sort((a, b) => {
+    if (a.finished && b.finished) return a.finishTime - b.finishTime;
+    if (a.finished !== b.finished) return a.finished ? -1 : 1;
+    return b.progress() - a.progress();
+  });
+}
+
 function endRace() {
   Game.state = 'over';
   const p = Game.player;
@@ -252,6 +290,12 @@ function endRace() {
   let newDrift = false;
   if (p.driftScore > (r.drift || 0)) { r.drift = p.driftScore; newDrift = true; }
   saveRecords();
+
+  if (Game.mode === 'story' && Season.active()) {
+    const order = finishingOrder();
+    Game.lastOrder = order;
+    Game.lastPoints = Season.applyResult(order.map(c => c.entry.id));
+  }
   setTimeout(() => showResults(newDrift), 700);
 }
 
@@ -336,8 +380,11 @@ let hudAcc = 0;
 
 function updateHudStatic() {
   el('hud-track').textContent = Game.trackDef.name;
-  el('hud-mode').textContent = Game.mode === 'race' ? 'CORRIDA' : (Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT');
-  el('hud-pos-wrap').classList.toggle('hidden', Game.mode !== 'race');
+  el('hud-mode').textContent = Game.mode === 'story'
+    ? (Game.trackDef.gp || 'TEMPORADA').toUpperCase()
+    : (Game.mode === 'race' ? 'CORRIDA' : (Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT'));
+  const disputa = Game.mode === 'race' || Game.mode === 'story';
+  el('hud-pos-wrap').classList.toggle('hidden', !disputa);
   el('hud-lap-wrap').classList.toggle('hidden', Game.mode === 'drift');
   el('hud-best-wrap').classList.toggle('hidden', Game.mode === 'drift');
   el('hud-drift-wrap').classList.toggle('hidden', false);
@@ -369,7 +416,7 @@ function hudTick(dt) {
   el('hud-best').textContent = fmtTime(p.bestLap || r.best);
   el('hud-drift').textContent = (p.driftScore + Math.round(p.driftBank * p.driftCombo)).toLocaleString('pt-BR');
 
-  if (G.mode === 'race') {
+  if (G.mode === 'race' || G.mode === 'story') {
     const sorted = G.cars.slice().sort((a, b) => b.progress() - a.progress());
     el('hud-pos').textContent = (sorted.indexOf(p) + 1) + '/' + G.cars.length;
   }
@@ -404,6 +451,8 @@ function togglePause() {
 
 function quitToMenu() {
   Game.state = 'menu';
+  const b = el('btn-season-abandon');
+  if (b) { delete b.dataset.armed; b.textContent = 'Abandonar temporada'; }
   document.body.classList.remove('playing');
   Sound.updateEngine(0, 0, 0, false);
   showScreen('screen-menu');
@@ -413,14 +462,21 @@ function quitToMenu() {
 function showResults(newDrift) {
   const G = Game, p = G.player;
   const box = el('results-body');
+  const disputa = G.mode === 'race' || G.mode === 'story';
   let pos = 1;
-  if (G.mode === 'race') {
-    const sorted = G.cars.slice().sort((a, b) => b.progress() - a.progress());
+  if (disputa) {
+    const sorted = G.lastOrder || finishingOrder();
     pos = sorted.indexOf(p) + 1;
   }
   const r = rec(G.trackDef.id);
   const rows = [];
-  if (G.mode === 'race') rows.push(['Posição final', ordinal(pos) + ' de ' + G.cars.length]);
+  if (disputa) rows.push(['Posição final', ordinal(pos) + ' de ' + G.cars.length]);
+  if (G.mode === 'story') {
+    const ganhos = (G.lastPoints && G.lastPoints[p.entry.id]) || 0;
+    rows.push(['Pontos nesta etapa', '+' + ganhos]);
+    rows.push(['No campeonato', ordinal(Season.playerPosition()) + ' · ' +
+      Season.driverStandings().find(r => r.entry.id === Season.playerId()).points + ' pts']);
+  }
   if (G.mode !== 'drift') {
     rows.push(['Tempo total', fmtTime(G.raceTime)]);
     rows.push(['Melhor volta', fmtTime(p.bestLap)]);
@@ -429,20 +485,145 @@ function showResults(newDrift) {
   rows.push(['Pontos de drift', p.driftScore.toLocaleString('pt-BR') + (newDrift ? '  🏆' : '')]);
   rows.push(['Recorde de drift', (r.drift || 0).toLocaleString('pt-BR')]);
 
-  el('results-title').textContent = G.mode === 'race'
+  el('results-title').textContent = disputa
     ? (pos === 1 ? 'VITÓRIA!' : ordinal(pos) + ' lugar')
     : (G.mode === 'drift' ? 'Tempo esgotado' : 'Sessão encerrada');
-  el('results-sub').textContent = G.trackDef.name + ' · ' + p.spec.name;
+  el('results-sub').textContent = (G.mode === 'story' ? G.trackDef.gp + ' · ' : G.trackDef.name + ' · ')
+    + teamById(G.teamId).name;
   box.innerHTML = rows.map(x => '<div class="row"><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+
+  /* no modo história, a classificação completa da etapa */
+  const cls = el('results-class');
+  cls.classList.toggle('hidden', G.mode !== 'story');
+  if (G.mode === 'story' && G.lastOrder) {
+    cls.innerHTML = G.lastOrder.map((c, i) => {
+      const pts = (G.lastPoints && G.lastPoints[c.entry.id]) || 0;
+      return '<div class="stand' + (c.isPlayer ? ' me' : '') + '">' +
+        '<span class="pos">' + (i + 1) + '</span>' +
+        '<i class="dot" style="background:' + c.entry.team.color + '"></i>' +
+        '<span class="who">' + (c.isPlayer ? c.entry.realName + ' (você)' : c.name) +
+        ' <em>' + c.entry.team.short + '</em></span>' +
+        '<span class="pts">' + (pts ? '+' + pts : '—') + '</span></div>';
+    }).join('');
+  }
+
+  el('btn-results-again').textContent = G.mode === 'story' ? 'Continuar' : 'Correr de novo';
+  el('btn-results-menu').textContent = G.mode === 'story' ? 'Ver temporada' : 'Menu';
   showScreen('screen-results');
+}
+
+/* ---------------- modo história ---------------- */
+function openStory() {
+  if (Season.active()) { showSeason(); return; }
+  Game.teamPickFor = 'story';
+  el('car-title').textContent = 'Escolha sua equipe para a temporada';
+  buildCarList();
+  showScreen('screen-car');
+}
+
+function beginSeason(teamId) {
+  Season.start(teamId, 0);
+  Game.teamId = teamId;
+  saveSettings();
+  showSeason();
+}
+
+function showSeason() {
+  renderSeason();
+  showScreen('screen-season');
+}
+
+function renderSeason() {
+  const d = Season.data;
+  if (!d) { showScreen('screen-menu'); return; }
+  const team = teamById(d.teamId);
+  const acabou = Season.finished();
+
+  el('season-title').textContent = acabou ? 'Temporada encerrada' : 'Temporada';
+  el('season-sub').textContent = team.country + ' ' + team.name + ' · ' +
+    (acabou ? Season.total() + ' etapas disputadas'
+      : 'Etapa ' + (d.round + 1) + ' de ' + Season.total());
+  el('season-pos').textContent = ordinal(Season.playerPosition());
+
+  /* aba ativa */
+  document.querySelectorAll('#screen-season .tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === Game.seasonTab));
+
+  const body = el('season-body');
+  if (Game.seasonTab === 'cal') {
+    let html = '';
+    if (acabou) {
+      const campeao = Season.driverStandings()[0];
+      const eu = campeao.entry.id === Season.playerId();
+      html += '<div class="champion"><div class="cup">' + (eu ? '🏆' : '🏁') + '</div>' +
+        '<b>' + (eu ? 'Você é o campeão!' : campeao.entry.realName + ' é o campeão') + '</b>' +
+        '<span>' + campeao.entry.team.name + ' · ' + campeao.points + ' pontos</span></div>';
+    }
+    html += Season.CALENDAR.map((id, i) => {
+      const t = TRACK_DEFS.find(x => x.id === id);
+      const feito = i < d.round;
+      const agora = i === d.round;
+      const r = d.rounds[i];
+      return '<div class="round' + (feito ? ' done' : '') + (agora ? ' next' : '') + '">' +
+        '<span class="round-n">' + (i + 1) + '</span>' +
+        '<span class="round-info"><b>' + t.country + ' ' + t.gp + '</b>' +
+        '<span>' + t.name + ' · ' + t.laps + ' voltas</span></span>' +
+        '<span class="round-res">' + (r ? ordinal(r.playerPos) : (agora ? 'próxima' : '')) + '</span>' +
+        '</div>';
+    }).join('');
+    body.innerHTML = html;
+  } else if (Game.seasonTab === 'drv') {
+    body.innerHTML = Season.driverStandings().map((r, i) =>
+      '<div class="stand' + (r.entry.id === Season.playerId() ? ' me' : '') + '">' +
+      '<span class="pos">' + (i + 1) + '</span>' +
+      '<i class="dot" style="background:' + r.entry.team.color + '"></i>' +
+      '<span class="who">' + r.entry.realName + ' <em>' + r.entry.team.short + '</em></span>' +
+      '<span class="pts">' + r.points + '</span></div>').join('');
+  } else {
+    body.innerHTML = Season.teamStandings().map((r, i) =>
+      '<div class="stand' + (r.team.id === d.teamId ? ' me' : '') + '">' +
+      '<span class="pos">' + (i + 1) + '</span>' +
+      '<i class="dot" style="background:' + r.team.color + '"></i>' +
+      '<span class="who">' + r.team.country + ' ' + r.team.name + '</span>' +
+      '<span class="pts">' + r.points + '</span></div>').join('');
+  }
+
+  const btn = el('btn-season-race');
+  if (acabou) {
+    btn.textContent = 'Nova temporada';
+  } else {
+    const t = Season.currentTrack();
+    btn.textContent = 'Correr · ' + t.gp;
+  }
+}
+
+function runSeasonRace() {
+  if (Season.finished()) {
+    Season.clear();
+    openStory();
+    return;
+  }
+  Game.mode = 'story';
+  Game.trackDef = Season.currentTrack();
+  Game.teamId = Season.data.teamId;
+  startRace();
 }
 
 /* ---------------- menus ---------------- */
 function refreshMenu() {
   el('menu-track').textContent = Game.trackDef.country + ' ' + Game.trackDef.name;
-  el('menu-car').textContent = Game.carSpec.name;
+  const tm = teamById(Game.teamId);
+  el('menu-car').textContent = tm.country + ' ' + tm.name;
   const r = rec(Game.trackDef.id);
   el('menu-record').textContent = r.best ? 'Recorde: ' + fmtTime(r.best) : 'Sem recorde ainda';
+  const sb = el('btn-play-story');
+  if (Season.active()) {
+    sb.textContent = Season.finished()
+      ? '🏆 Temporada encerrada'
+      : '🏆 Continuar temporada · etapa ' + (Season.data.round + 1) + '/' + Season.total();
+  } else {
+    sb.textContent = '🏆 Modo História';
+  }
 }
 
 function buildTrackList() {
@@ -495,23 +676,42 @@ function drawThumb(cv, def) {
 function buildCarList() {
   const wrap = el('car-list');
   wrap.innerHTML = '';
-  CAR_TYPES.forEach(spec => {
+  TEAMS.forEach(team => {
     const card = document.createElement('button');
-    card.className = 'card car-card' + (spec.id === Game.carSpec.id ? ' active' : '');
+    card.className = 'card car-card' + (team.id === Game.teamId ? ' active' : '');
     const bars = ['Potência', 'Freio', 'Drift'].map((label, i) =>
       '<div class="bar"><span>' + label + '</span><i>' +
-      '<u style="width:' + (spec.stats[i] / 5 * 100) + '%"></u></i></div>').join('');
+      '<u style="width:' + (team.stats[i] / 5 * 100) + '%"></u></i></div>').join('');
     card.innerHTML =
-      '<canvas class="thumb car-thumb" width="150" height="110"></canvas>' +
-      '<div class="card-info"><h3>' + spec.name + '</h3><p>' + spec.tag + '</p>' + bars + '</div>';
-    card.onclick = () => { Game.carSpec = spec; buildCarList(); refreshMenu(); Sound.blip(660, 0.06, 'triangle', 0.12); };
+      '<canvas class="thumb car-thumb" width="160" height="120"></canvas>' +
+      '<div class="card-info"><h3>' + team.country + ' ' + team.name + '</h3>' +
+      '<p>' + team.drivers.map(d => d.name).join(' · ') + '</p>' + bars + '</div>';
+    card.onclick = () => {
+      Sound.blip(660, 0.06, 'triangle', 0.12);
+      if (Game.teamPickFor === 'story') { beginSeason(team.id); return; }
+      Game.teamId = team.id; saveSettings();
+      buildCarList(); refreshMenu();
+    };
     wrap.appendChild(card);
-    const c = card.querySelector('.thumb').getContext('2d');
-    c.fillStyle = '#22262e'; c.fillRect(0, 0, 150, 110);
-    c.save(); c.translate(75, 55); c.scale(2.4, 2.4); c.rotate(-Math.PI / 2);
-    drawCar(c, { x: 0, y: 0, angle: 0, spec: spec, steerAngle: 0.25, hitTimer: 0, brakeGlow: 0 });
-    c.restore();
+    drawCarThumb(card.querySelector('.thumb'), team);
   });
+}
+
+/* miniatura do monoposto com as cores da equipe */
+function drawCarThumb(cv, team) {
+  const c = cv.getContext('2d');
+  const g = c.createLinearGradient(0, 0, 0, cv.height);
+  g.addColorStop(0, '#252a33'); g.addColorStop(1, '#1a1e25');
+  c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+  c.save();
+  c.translate(cv.width / 2, cv.height / 2);
+  c.scale(2.5, 2.5);
+  c.rotate(-Math.PI / 2);
+  drawCar(c, {
+    x: 0, y: 0, angle: 0, steerAngle: 0.3, hitTimer: 0, brakeGlow: 0,
+    spec: { color: team.color, accent: team.color2, wing: team.wing }
+  });
+  c.restore();
 }
 
 function buildSettings() {
@@ -523,16 +723,23 @@ function buildSettings() {
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
   el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][s.difficulty];
+  el('set-laps').value = s.laps;
+  el('set-laps-val').textContent = s.laps ? s.laps : 'padrão';
 }
 
 /* ---------------- ligações da interface ---------------- */
 function wireUI() {
+  el('btn-play-story').onclick = openStory;
   el('btn-play-race').onclick = () => { Game.mode = 'race'; startRace(); };
   el('btn-play-time').onclick = () => { Game.mode = 'time'; startRace(); };
   el('btn-play-drift').onclick = () => { Game.mode = 'drift'; startRace(); };
 
   el('btn-open-tracks').onclick = () => { buildTrackList(); showScreen('screen-track'); };
-  el('btn-open-cars').onclick = () => { buildCarList(); showScreen('screen-car'); };
+  el('btn-open-cars').onclick = () => {
+    Game.teamPickFor = 'quick';
+    el('car-title').textContent = 'Escolha a equipe';
+    buildCarList(); showScreen('screen-car');
+  };
   el('btn-open-settings').onclick = () => { buildSettings(); showScreen('screen-settings'); };
   document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => { refreshMenu(); showScreen('screen-menu'); });
 
@@ -540,8 +747,28 @@ function wireUI() {
   el('btn-resume').onclick = togglePause;
   el('btn-restart').onclick = startRace;
   el('btn-quit').onclick = quitToMenu;
-  el('btn-results-again').onclick = startRace;
-  el('btn-results-menu').onclick = quitToMenu;
+  el('btn-results-again').onclick = () => {
+    if (Game.mode === 'story') { document.body.classList.remove('playing'); showSeason(); }
+    else startRace();
+  };
+  el('btn-results-menu').onclick = () => {
+    if (Game.mode === 'story') { document.body.classList.remove('playing'); showSeason(); }
+    else quitToMenu();
+  };
+
+  el('btn-season-race').onclick = runSeasonRace;
+  el('btn-season-quit').onclick = quitToMenu;
+  el('btn-season-abandon').onclick = () => {
+    if (el('btn-season-abandon').dataset.armed) {
+      Season.clear(); quitToMenu();
+    } else {
+      el('btn-season-abandon').dataset.armed = '1';
+      el('btn-season-abandon').textContent = 'Tem certeza? Toque de novo';
+    }
+  };
+  document.querySelectorAll('#screen-season .tab').forEach(t => {
+    t.onclick = () => { Game.seasonTab = t.dataset.tab; renderSeason(); };
+  });
 
   el('set-autogas').onchange = e => { Game.settings.autoGas = e.target.checked; saveSettings(); updateHudStatic(); };
   el('set-assist').onchange = e => {
@@ -556,6 +783,10 @@ function wireUI() {
   el('set-difficulty').oninput = e => {
     Game.settings.difficulty = +e.target.value;
     el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][+e.target.value]; saveSettings();
+  };
+  el('set-laps').oninput = e => {
+    Game.settings.laps = +e.target.value;
+    el('set-laps-val').textContent = +e.target.value ? e.target.value : 'padrão'; saveSettings();
   };
   el('btn-reset-records').onclick = () => {
     Game.records = {}; saveRecords(); refreshMenu(); buildTrackList();
@@ -587,6 +818,7 @@ setInterval(() => {
 /* ---------------- início ---------------- */
 function boot() {
   loadStore();
+  Season.load();
   resize();
   bindTouch();
   wireUI();

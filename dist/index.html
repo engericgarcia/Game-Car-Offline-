@@ -147,6 +147,44 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
 .opt.range input[type=range]{width:110px;accent-color:var(--acc)}
 .opt.range b{min-width:52px;text-align:right;font-size:13px;color:var(--acc)}
 
+/* ---------------- temporada ---------------- */
+.big.story{background:linear-gradient(180deg,#ffe08a,#f0b429);color:#241a02;border-color:#f0b429}
+.season-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.season-head h2{margin:0;text-align:left}
+.season-head .tagline{margin:2px 0 0;text-align:left}
+.season-badge{background:var(--panel2);border:1px solid var(--line);border-radius:14px;
+  padding:8px 12px;text-align:right;flex:0 0 auto}
+.season-badge span{display:block;font-size:8px;letter-spacing:1.4px;color:var(--dim)}
+.season-badge b{display:block;font-size:22px;color:var(--acc);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{flex:1;padding:9px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);
+  font-size:13px;font-weight:700;color:var(--dim)}
+.tab.active{color:var(--txt);border-color:var(--acc);background:#262b33}
+.season-body{max-height:46vh;overflow-y:auto;margin-bottom:14px;-webkit-overflow-scrolling:touch}
+.round{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;
+  background:var(--panel2);border:1px solid var(--line);margin-bottom:7px}
+.round.next{border-color:var(--acc)}
+.round.done{opacity:.62}
+.round-n{width:26px;height:26px;border-radius:8px;background:#333a45;display:grid;place-items:center;
+  font-size:11px;font-weight:800;flex:0 0 auto}
+.round.next .round-n{background:var(--acc);color:#241a02}
+.round-info{flex:1;min-width:0}
+.round-info b{display:block;font-size:14px}
+.round-info span{display:block;font-size:11px;color:var(--dim)}
+.round-res{font-size:13px;font-weight:800;color:var(--acc);flex:0 0 auto}
+.stand{display:flex;align-items:center;gap:9px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px}
+.stand.me{background:#262b33;border-radius:10px;border-bottom-color:transparent}
+.stand .pos{width:22px;color:var(--dim);font-variant-numeric:tabular-nums;flex:0 0 auto}
+.stand .dot{width:4px;height:22px;border-radius:2px;flex:0 0 auto}
+.stand .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stand .who em{font-style:normal;color:var(--dim);font-size:11px}
+.stand .pts{font-weight:800;font-variant-numeric:tabular-nums;flex:0 0 auto}
+.classif{max-height:38vh;overflow-y:auto;margin-bottom:14px}
+.champion{text-align:center;padding:14px 0 4px}
+.champion .cup{font-size:44px;line-height:1}
+.champion b{display:block;font-size:19px;margin-top:6px}
+.champion span{display:block;font-size:13px;color:var(--dim);margin-top:2px}
+
 /* ---------------- resultados ---------------- */
 .rows{margin:4px 0 16px}
 .rows .row{display:flex;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:14px}
@@ -203,12 +241,13 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
         <span>CIRCUITO</span><b id="menu-track">—</b><em id="menu-record">—</em>
       </button>
       <button id="btn-open-cars" class="pick-btn">
-        <span>CARRO</span><b id="menu-car">—</b><em>trocar</em>
+        <span>EQUIPE</span><b id="menu-car">—</b><em>trocar</em>
       </button>
     </div>
 
     <div class="modes">
-      <button id="btn-play-race" class="big primary">🏁 Corrida</button>
+      <button id="btn-play-story" class="big primary story">🏆 Modo História</button>
+      <button id="btn-play-race" class="big">🏁 Corrida rápida</button>
       <button id="btn-play-time" class="big">⏱ Contra-relógio</button>
       <button id="btn-play-drift" class="big">💨 Ataque de drift</button>
     </div>
@@ -230,7 +269,7 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
 <!-- ============ CARROS ============ -->
 <section id="screen-car" class="screen hidden">
   <div class="panel wide">
-    <h2>Escolha o carro</h2>
+    <h2 id="car-title">Escolha a equipe</h2>
     <div id="car-list" class="grid"></div>
     <button class="ghost" data-back>← Voltar</button>
   </div>
@@ -246,12 +285,36 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
       <input type="checkbox" id="set-assist"></label>
     <label class="opt"><span>Som<em>motor e derrapagem</em></span>
       <input type="checkbox" id="set-sound"></label>
-    <label class="opt range"><span>Adversários<em>na corrida</em></span>
-      <input type="range" id="set-opponents" min="0" max="7" step="1"><b id="set-opponents-val">5</b></label>
+    <label class="opt range"><span>Adversários<em>até 19 carros no grid</em></span>
+      <input type="range" id="set-opponents" min="0" max="19" step="1"><b id="set-opponents-val">9</b></label>
+    <label class="opt range"><span>Voltas<em>0 = o padrão de cada pista</em></span>
+      <input type="range" id="set-laps" min="0" max="20" step="1"><b id="set-laps-val">padrão</b></label>
     <label class="opt range"><span>Dificuldade<em>ritmo da IA</em></span>
       <input type="range" id="set-difficulty" min="0" max="2" step="1"><b id="set-difficulty-val">Normal</b></label>
     <button id="btn-reset-records" class="ghost danger">Apagar recordes</button>
     <button class="ghost" data-back>← Voltar</button>
+  </div>
+</section>
+
+<!-- ============ TEMPORADA ============ -->
+<section id="screen-season" class="screen hidden">
+  <div class="panel wide">
+    <div class="season-head">
+      <div class="season-id">
+        <h2 id="season-title">Temporada</h2>
+        <p class="tagline" id="season-sub"></p>
+      </div>
+      <div class="season-badge"><span>SUA POSIÇÃO</span><b id="season-pos">—</b></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="cal">Calendário</button>
+      <button class="tab" data-tab="drv">Pilotos</button>
+      <button class="tab" data-tab="tea">Equipes</button>
+    </div>
+    <div id="season-body" class="season-body"></div>
+    <button id="btn-season-race" class="big primary">Correr</button>
+    <button id="btn-season-quit" class="ghost">Menu principal</button>
+    <button id="btn-season-abandon" class="ghost danger">Abandonar temporada</button>
   </div>
 </section>
 
@@ -271,6 +334,7 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
     <h2 id="results-title">Fim</h2>
     <p class="tagline" id="results-sub"></p>
     <div id="results-body" class="rows"></div>
+    <div id="results-class" class="classif hidden"></div>
     <button id="btn-results-again" class="big primary">Correr de novo</button>
     <button id="btn-results-menu" class="ghost">Menu</button>
   </div>
@@ -411,6 +475,121 @@ function fmtTime(ms) {
 
 function ordinal(n) { return n + "º"; }
 
+/* ===== teams.js ===== */
+/* ============================================================
+   teams.js - equipes, pilotos e desempenho de cada carro
+   As equipes são inspiradas nas da F1 (cores e caráter), com
+   nomes próprios para o projeto. Trocar por outros nomes é só
+   editar este array.
+   ============================================================ */
+'use strict';
+
+/* color  = cor principal da carroceria
+   color2 = faixa/detalhe
+   wing    = asas e bico
+   tier    = ritmo base da IA (1.00 = equipe de ponta)
+   stats   = [potência, freio, drift] de 1 a 5, só para exibir */
+const TEAMS = [
+  {
+    id: 'rossa', name: 'Scuderia Rossa', short: 'ROS', country: '🇮🇹',
+    color: '#d81e26', color2: '#f4f6f8', wing: '#17191e',
+    engine: 596, top: 422, grip: 0.838, driftGrip: 0.968, turn: 3.04, brake: 862,
+    tier: 1.00, stats: [5, 4, 3],
+    drivers: [{ name: 'L. Bianchi', num: 7 }, { name: 'F. Moretti', num: 8 }]
+  },
+  {
+    id: 'prata', name: 'Silberpfeil', short: 'SIL', country: '🇩🇪',
+    color: '#b9c3cc', color2: '#00b3a4', wing: '#1b1f26',
+    engine: 584, top: 418, grip: 0.826, driftGrip: 0.962, turn: 3.12, brake: 884,
+    tier: 0.995, stats: [4, 5, 3],
+    drivers: [{ name: 'K. Halvorsen', num: 12 }, { name: 'D. Vogel', num: 30 }]
+  },
+  {
+    id: 'papaia', name: 'Papaya Racing', short: 'PAP', country: '🇬🇧',
+    color: '#ff7a18', color2: '#12305e', wing: '#1b1f26',
+    engine: 588, top: 420, grip: 0.834, driftGrip: 0.972, turn: 3.10, brake: 868,
+    tier: 0.998, stats: [4, 4, 4],
+    drivers: [{ name: 'O. Pearce', num: 4 }, { name: 'R. Santos', num: 81 }]
+  },
+  {
+    id: 'touro', name: 'Touro Azul', short: 'TOU', country: '🇦🇹',
+    color: '#123a7a', color2: '#e4032e', wing: '#f2c200',
+    engine: 600, top: 424, grip: 0.842, driftGrip: 0.970, turn: 2.98, brake: 856,
+    tier: 0.997, stats: [5, 4, 3],
+    drivers: [{ name: 'M. Steiner', num: 1 }, { name: 'A. Novak', num: 11 }]
+  },
+  {
+    id: 'alpino', name: 'Verde Alpino', short: 'ALP', country: '🇬🇧',
+    color: '#00594f', color2: '#d3b464', wing: '#17191e',
+    engine: 572, top: 412, grip: 0.846, driftGrip: 0.974, turn: 3.06, brake: 846,
+    tier: 0.985, stats: [3, 3, 4],
+    drivers: [{ name: 'G. Ashford', num: 14 }, { name: 'P. Lindqvist', num: 18 }]
+  },
+  {
+    id: 'bleu', name: 'Bleu Alpin', short: 'BLE', country: '🇫🇷',
+    color: '#1350e0', color2: '#ef4c8a', wing: '#1b1f26',
+    engine: 566, top: 408, grip: 0.850, driftGrip: 0.976, turn: 3.14, brake: 838,
+    tier: 0.980, stats: [3, 3, 4],
+    drivers: [{ name: 'É. Lambert', num: 10 }, { name: 'N. Perrin', num: 31 }]
+  },
+  {
+    id: 'azzurro', name: 'Azzurro Lab', short: 'AZZ', country: '🇮🇹',
+    color: '#2f6fd0', color2: '#e8edf3', wing: '#17191e',
+    engine: 570, top: 410, grip: 0.848, driftGrip: 0.978, turn: 3.16, brake: 842,
+    tier: 0.978, stats: [3, 3, 5],
+    drivers: [{ name: 'S. Ricci', num: 22 }, { name: 'Y. Tanaka', num: 40 }]
+  },
+  {
+    id: 'nero', name: 'Nero Corsa', short: 'NER', country: '🇺🇸',
+    color: '#2b3038', color2: '#e8ecf2', wing: '#d81e26',
+    engine: 562, top: 406, grip: 0.854, driftGrip: 0.980, turn: 3.00, brake: 834,
+    tier: 0.972, stats: [2, 2, 4],
+    drivers: [{ name: 'C. Brandt', num: 20 }, { name: 'W. Hayes', num: 27 }]
+  },
+  {
+    id: 'albion', name: 'Albion GP', short: 'ALB', country: '🇬🇧',
+    color: '#0b2c6b', color2: '#40b4ff', wing: '#e8ecf2',
+    engine: 558, top: 404, grip: 0.856, driftGrip: 0.974, turn: 3.08, brake: 830,
+    tier: 0.968, stats: [2, 2, 3],
+    drivers: [{ name: 'T. Whitfield', num: 23 }, { name: 'J. Cole', num: 2 }]
+  },
+  {
+    id: 'lima', name: 'Verde Lima', short: 'LIM', country: '🇨🇭',
+    color: '#8cd600', color2: '#17191e', wing: '#17191e',
+    engine: 554, top: 402, grip: 0.858, driftGrip: 0.982, turn: 3.02, brake: 826,
+    tier: 0.964, stats: [2, 2, 5],
+    drivers: [{ name: 'V. Keller', num: 24 }, { name: 'B. Okonkwo', num: 77 }]
+  }
+];
+
+function teamById(id) { return TEAMS.find(t => t.id === id) || TEAMS[0]; }
+
+/* Um carro no grid = equipe + um dos dois pilotos dela. */
+function makeEntry(team, driverIndex, isPlayer) {
+  const d = team.drivers[driverIndex];
+  return {
+    id: team.id + '-' + driverIndex,
+    team: team, driverIndex: driverIndex,
+    name: isPlayer ? 'VOCÊ' : d.name,
+    realName: d.name, num: d.num, isPlayer: !!isPlayer,
+    /* o Car usa estes campos diretamente */
+    color: team.color, accent: team.color2, wing: team.wing,
+    engine: team.engine, top: team.top, grip: team.grip,
+    driftGrip: team.driftGrip, turn: team.turn, brake: team.brake
+  };
+}
+
+/* Grid completo: todas as equipes, dois carros cada. */
+function allEntries(playerTeamId, playerDriverIndex) {
+  const out = [];
+  for (const t of TEAMS) {
+    for (let d = 0; d < t.drivers.length; d++) {
+      out.push(makeEntry(t, d, t.id === playerTeamId && d === playerDriverIndex));
+    }
+  }
+  return out;
+}
+
 /* ===== tracks.js ===== */
 /* ============================================================
    tracks.js - circuitos inspirados na Fórmula 1
@@ -421,7 +600,7 @@ function ordinal(n) { return n + "º"; }
 
 const TRACK_DEFS = [
   {
-    id: 'monza', scale: 1.5,
+    id: 'monza', scale: 1.5, gp: 'GP da Itália',
     name: 'Monza',
     sub: 'Templo da Velocidade · 11 curvas',
     country: '🇮🇹',
@@ -450,7 +629,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'monaco', scale: 1.09,
+    id: 'monaco', scale: 1.09, gp: 'GP de Mônaco',
     name: 'Mônaco',
     sub: 'Circuito de rua · 19 curvas',
     country: '🇲🇨',
@@ -483,7 +662,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'interlagos', scale: 1.41,
+    id: 'interlagos', scale: 1.41, gp: 'GP do Brasil',
     name: 'Interlagos',
     sub: 'Autódromo José Carlos Pace · 15 curvas',
     country: '🇧🇷',
@@ -512,7 +691,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'spa', scale: 1.98,
+    id: 'spa', scale: 1.98, gp: 'GP da Bélgica',
     name: 'Spa-Francorchamps',
     sub: 'Ardenas · 19 curvas · a mais longa',
     country: '🇧🇪',
@@ -543,7 +722,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'arena', scale: 1.26,
+    id: 'arena', scale: 1.26, gp: 'Corrida dos Campeões',
     name: 'Arena de Drift',
     sub: 'Treino livre · pista larguíssima',
     country: '🏁',
@@ -558,6 +737,8 @@ const TRACK_DEFS = [
 ];
 
 const TRACK_SPACING = 5;   /* distância entre pontos da linha central */
+const GRID_GAP = 46;       /* distância entre posições de largada */
+const GRID_BACK = 58;      /* recuo da pole em relação à linha */
 
 /* Constrói toda a geometria derivada de uma pista */
 function buildTrack(def) {
@@ -688,36 +869,11 @@ function buildTrack(def) {
    ============================================================ */
 'use strict';
 
-const CAR_TYPES = [
-  {
-    id: 'sprinter', name: 'Sprinter', tag: 'Equilibrado',
-    color: '#e5453a', accent: '#ffd166',
-    engine: 560, top: 405, grip: 0.855, driftGrip: 0.971, turn: 3.05, brake: 780,
-    stats: [3, 3, 3]
-  },
-  {
-    id: 'kaido', name: 'Kaido AE', tag: 'Rei do drift',
-    color: '#f2f2f2', accent: '#111318',
-    engine: 505, top: 372, grip: 0.885, driftGrip: 0.982, turn: 3.45, brake: 720,
-    stats: [2, 4, 5]
-  },
-  {
-    id: 'bruto', name: 'Bruto V8', tag: 'Muita potência',
-    color: '#2f6df6', accent: '#f2f2f2',
-    engine: 645, top: 452, grip: 0.872, driftGrip: 0.976, turn: 2.72, brake: 810,
-    stats: [5, 2, 4]
-  },
-  {
-    id: 'kappa', name: 'Kappa GT', tag: 'Muita aderência',
-    color: '#28c76f', accent: '#0d2b1a',
-    engine: 545, top: 418, grip: 0.815, driftGrip: 0.958, turn: 3.2, brake: 900,
-    stats: [3, 5, 2]
-  }
-];
-
-function carTypeById(id) { return CAR_TYPES.find(c => c.id === id) || CAR_TYPES[0]; }
-
-const CAR_LEN = 30, CAR_WID = 16;
+/* proporções de um monoposto visto de cima: comprido e estreito,
+   com as rodas para fora da carroceria */
+const CAR_LEN = 34, CAR_WID = 20;
+const WHEEL_FX = 8.5, WHEEL_FY = 8.6;    /* eixo dianteiro */
+const WHEEL_RX = -9.5, WHEEL_RY = 9.2;   /* eixo traseiro  */
 
 class Car {
   constructor(spec, track, isPlayer) {
@@ -871,8 +1027,8 @@ class Car {
   /* posições dos 4 pneus no mundo (para marcas e fumaça) */
   wheelPos(front, right) {
     const ca = Math.cos(this.angle), sa = Math.sin(this.angle);
-    const lx = front ? CAR_LEN * 0.32 : -CAR_LEN * 0.32;
-    const ly = right ? CAR_WID * 0.44 : -CAR_WID * 0.44;
+    const lx = front ? WHEEL_FX : WHEEL_RX;
+    const ly = (right ? 1 : -1) * (front ? WHEEL_FY : WHEEL_RY);
     return [this.x + lx * ca - ly * sa, this.y + lx * sa + ly * ca];
   }
 }
@@ -887,7 +1043,7 @@ function resolveCarCollisions(cars, trackN) {
       if (Math.min(dp, trackN - dp) > trackN * 0.08) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const d = Math.hypot(dx, dy);
-      const minD = 25;
+      const minD = 27;
       if (d > minD || d < 0.0001) continue;
       const ux = dx / d, uy = dy / d;
       const push = (minD - d) * 0.5;
@@ -911,9 +1067,6 @@ function resolveCarCollisions(cars, trackN) {
    velocidade máxima possível pela curvatura da curva que vem.
    ============================================================ */
 'use strict';
-
-const AI_NAMES = ['R. Prata', 'D. Kowalski', 'M. Tanaka', 'L. Duarte', 'F. Rossi',
-  'A. Okafor', 'V. Petrov', 'C. Mendes', 'J. Halvorsen', 'B. Nakano'];
 
 class AIDriver {
   constructor(car, skill, lane) {
@@ -1000,32 +1153,31 @@ class AIDriver {
   }
 }
 
-function makeGrid(track, playerSpec, opponentCount, playerSlot, difficulty) {
+/* Monta o grid a partir de uma lista de inscrições já na ordem de
+   largada (a primeira é a pole). Uma delas tem isPlayer. */
+function makeGrid(track, entries, difficulty) {
   const cars = [], ais = [];
-  const usedNames = AI_NAMES.slice().sort(() => Math.random() - 0.5);
-  const total = opponentCount + 1;
-  const specs = CAR_TYPES;
-  for (let i = 0; i < total; i++) {
-    const isPlayer = i === playerSlot;
-    const spec = isPlayer ? playerSpec : Object.assign({}, specs[(i * 3 + 1) % specs.length], {
-      color: AI_COLORS[i % AI_COLORS.length]
-    });
-    const car = new Car(spec, track, isPlayer);
-    const arc = -(58 + i * 50);
-    const lateral = (i % 2 === 0 ? -1 : 1) * track.half * 0.38;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const car = new Car(e, track, e.isPlayer);
+    const arc = -(GRID_BACK + i * GRID_GAP);
+    const lateral = (i % 2 === 0 ? -1 : 1) * track.half * 0.34;
     car.placeAtArc((track.length + arc) % track.length, lateral);
-    car.name = isPlayer ? 'VOCÊ' : usedNames[i % usedNames.length];
+    car.name = e.name;
+    car.entry = e;
+    car.gridPos = i + 1;
     cars.push(car);
-    if (!isPlayer) {
-      const base = 0.90 + difficulty * 0.055;
-      const skill = base + (Math.random() - 0.5) * 0.05;
-      ais.push(new AIDriver(car, skill, (Math.random() - 0.5) * 0.44));
+    if (!e.isPlayer) {
+      /* a força da equipe pesa, mas o dia do piloto pesa também: sem esta
+         variação as corridas terminam sempre na mesma ordem das equipes */
+      const base = (0.90 + difficulty * 0.055) * (e.team ? e.team.tier : 1);
+      const forma = (Math.random() - 0.5) * 0.055;
+      ais.push(new AIDriver(car, base + forma, (Math.random() - 0.5) * 0.44));
     }
   }
   return { cars: cars, ais: ais };
 }
 
-const AI_COLORS = ['#ff8c1a', '#8b5cf6', '#00c2d1', '#ec4899', '#facc15', '#94a3b8', '#22c55e'];
 
 /* ===== audio.js ===== */
 /* ============================================================
@@ -1177,6 +1329,83 @@ function curveIntensity(track, lo, hi) {
   return sm;
 }
 
+/* ---------- cenário ---------- */
+
+/* faixas de grama cortada, na diagonal, como nos autódromos de verdade */
+function mownStripes(ctx, b, angle, width) {
+  ctx.save();
+  ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+  ctx.rotate(angle);
+  const span = Math.hypot(b.w, b.h);
+  ctx.fillStyle = 'rgba(255,255,255,0.035)';
+  for (let x = -span; x < span; x += width * 2) ctx.fillRect(x, -span / 2, width, span);
+  ctx.restore();
+}
+
+function drawTree(ctx, x, y, r, rng) {
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath();
+  ctx.ellipse(x + r * 0.30, y + r * 0.34, r * 0.92, r * 0.78, 0, 0, TAU);
+  ctx.fill();
+  /* copa: três círculos sobrepostos, do escuro para o claro */
+  const tone = rng();
+  const dark = tone > 0.5 ? '#1d3d1c' : '#213f22';
+  const mid = tone > 0.5 ? '#2a5a26' : '#2f5f2c';
+  const lit = tone > 0.5 ? '#3d7a33' : '#44813a';
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.fillStyle = mid;
+  ctx.beginPath(); ctx.arc(x - r * 0.14, y - r * 0.16, r * 0.80, 0, TAU); ctx.fill();
+  ctx.fillStyle = lit;
+  ctx.beginPath(); ctx.arc(x - r * 0.28, y - r * 0.30, r * 0.48, 0, TAU); ctx.fill();
+}
+
+/* arquibancada de frente para a pista */
+function drawGrandstand(ctx, p, side, len, depth, rng) {
+  const nx = p.nx * side, ny = p.ny * side;
+  ctx.save();
+  ctx.translate(p.x + nx * (depth * 0.5 + 8), p.y + ny * (depth * 0.5 + 8));
+  ctx.rotate(Math.atan2(p.ty, p.tx));
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  ctx.fillRect(-len / 2 + 3, -depth / 2 + 4, len, depth);
+  ctx.fillStyle = '#3b424d';
+  ctx.fillRect(-len / 2, -depth / 2, len, depth);
+  const rows = 5, seats = Math.max(4, Math.floor(len / 5));
+  for (let r = 0; r < rows; r++) {
+    for (let s = 0; s < seats; s++) {
+      if (rng() > 0.82) continue;
+      const sx = -len / 2 + 3 + s * (len - 6) / seats;
+      const sy = -depth / 2 + 4 + r * (depth - 8) / rows;
+      ctx.fillStyle = ['#d8dde4', '#9aa5b4', '#c05a4e', '#4e7bc0', '#d9b44a'][Math.floor(rng() * 5)];
+      ctx.fillRect(sx, sy, 2.6, 2.6);
+    }
+  }
+  ctx.fillStyle = 'rgba(24,28,34,0.88)';
+  ctx.fillRect(-len / 2 - 2, -depth / 2 - 5, len + 4, 6);
+  ctx.restore();
+}
+
+/* caixas brancas do grid de largada, atrás da linha de chegada */
+function drawStartGrid(ctx, track, slots) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(240,244,248,0.7)';
+  ctx.fillStyle = 'rgba(240,244,248,0.09)';
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < slots; i++) {
+    const p = track.atArc(track.length - (GRID_BACK + i * GRID_GAP));
+    /* a caixa só é pintada em trecho reto - em curva ficaria torta */
+    if (Math.abs(p.curv) > 0.0022) continue;
+    const lat = (i % 2 === 0 ? -1 : 1) * track.half * 0.34;
+    ctx.save();
+    ctx.translate(p.x + p.nx * lat, p.y + p.ny * lat);
+    ctx.rotate(Math.atan2(p.ty, p.tx));
+    ctx.beginPath(); ctx.rect(-17, -11, 34, 22);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function buildTrackLayer(track) {
   const b = track.bounds;
   const sc = layerScale(b, LAYER_PIXEL_BUDGET, 0.92, 2);
@@ -1215,6 +1444,7 @@ function buildTrackLayer(track) {
 
   const rng = makeRng(def.id.length * 7919 + 13);
   ctx.save();
+  if (!def.urban) mownStripes(ctx, b, 0.42, 46);
   const blobs = clamp(Math.round(b.w * b.h / 900), 1500, 9000);
   for (let i = 0; i < blobs; i++) {
     const x = b.x + rng() * b.w, y = b.y + rng() * b.h, r = 2.5 + rng() * 9;
@@ -1222,6 +1452,24 @@ function buildTrackLayer(track) {
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   }
   ctx.restore();
+
+  /* ---------- árvores, em bosques fora da área de corrida ---------- */
+  if (!def.urban) {
+    const safe = track.half + track.runoff + 26;
+    const groves = clamp(Math.round(b.w * b.h / 26000), 40, 260);
+    for (let g = 0; g < groves; g++) {
+      const gx = b.x + rng() * b.w, gy = b.y + rng() * b.h;
+      if (track.surfaceAt(gx, gy).dist < safe + 40) continue;
+      const count = 4 + Math.floor(rng() * 9);
+      const spread = 34 + rng() * 52;
+      for (let i = 0; i < count; i++) {
+        const tx = gx + (rng() - 0.5) * spread * 2;
+        const ty = gy + (rng() - 0.5) * spread * 2;
+        if (track.surfaceAt(tx, ty).dist < safe) continue;
+        drawTree(ctx, tx, ty, 7 + rng() * 11, rng);
+      }
+    }
+  }
 
   if (def.urban) {
     /* quarteirões / prédios em volta do circuito de rua */
@@ -1347,8 +1595,16 @@ function buildTrackLayer(track) {
     }
   }
 
-  /* ---------- linha de largada/chegada ---------- */
+  /* ---------- largada: caixas do grid, linha e arquibancadas ---------- */
+  drawStartGrid(ctx, track, 20);
   drawStartLine(ctx, track);
+
+  const standSpots = [40, -70, 150, 260];
+  for (const off of standSpots) {
+    const p = track.atArc((track.length + off * TRACK_SPACING) % track.length);
+    drawGrandstand(ctx, p, 1, 150, 40, rng);
+    if (off === 40 || off === -70) drawGrandstand(ctx, p, -1, 130, 34, rng);
+  }
 
   return { canvas: cv, bounds: b, bg: outside };
 }
@@ -1468,69 +1724,138 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* Monoposto visto de cima. Peças, da frente para trás: asa dianteira,
+   bico, rodas dianteiras, cockpit com halo, sidepods, capô do motor,
+   rodas traseiras e asa traseira. */
 function drawCar(ctx, car) {
-  const L = CAR_LEN, W = CAR_WID;
+  const sp = car.spec;
+  const body = sp.color, trim = sp.accent || '#f2f4f7', wing = sp.wing || '#1a1d22';
+
   ctx.save();
   ctx.translate(car.x, car.y);
-
-  /* sombra */
-  ctx.save();
   ctx.rotate(car.angle);
-  ctx.fillStyle = 'rgba(0,0,0,0.30)';
-  roundRectPath(ctx, -L / 2 + 2, -W / 2 + 3, L, W, 5);
-  ctx.fill();
+
+  /* sombra projetada */
+  ctx.save();
+  ctx.translate(2.5, 3.5);
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  ctx.beginPath();
+  ctx.moveTo(17, -2); ctx.lineTo(17, 2); ctx.lineTo(-17, 5); ctx.lineTo(-17, -5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillRect(-13, -10, 26, 20);
   ctx.restore();
 
-  ctx.rotate(car.angle);
+  const steer = car.steerAngle * 0.45;
 
-  /* rodas */
-  const steer = car.steerAngle * 0.5;
-  ctx.fillStyle = '#16181d';
-  const wheels = [[L * 0.30, W * 0.50, steer], [L * 0.30, -W * 0.50, steer],
-  [-L * 0.30, W * 0.52, 0], [-L * 0.30, -W * 0.52, 0]];
-  for (const w of wheels) {
+  /* ---- rodas (desenhadas antes da carroceria) ---- */
+  function wheel(x, y, len, wid, rot) {
     ctx.save();
-    ctx.translate(w[0], w[1]);
-    ctx.rotate(w[2]);
-    ctx.fillRect(-4.5, -2.6, 9, 5.2);
+    ctx.translate(x, y);
+    if (rot) ctx.rotate(rot);
+    ctx.fillStyle = '#15171c';
+    roundRectPath(ctx, -len / 2, -wid / 2, len, wid, 1.6);
+    ctx.fill();
+    /* faixa clara do pneu + brilho */
+    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+    ctx.fillRect(-len / 2 + 0.8, -wid / 2 + 0.7, len - 1.6, 0.9);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(-len / 2 + 0.8, wid / 2 - 1.6, len - 1.6, 0.9);
     ctx.restore();
   }
+  wheel(WHEEL_FX, -WHEEL_FY, 7.6, 4.4, steer);
+  wheel(WHEEL_FX, WHEEL_FY, 7.6, 4.4, steer);
+  wheel(WHEEL_RX, -WHEEL_RY, 8.6, 5.6, 0);
+  wheel(WHEEL_RX, WHEEL_RY, 8.6, 5.6, 0);
 
-  /* carroceria */
-  const g = ctx.createLinearGradient(0, -W / 2, 0, W / 2);
-  g.addColorStop(0, car.spec.color);
-  g.addColorStop(0.5, car.spec.color);
-  g.addColorStop(1, 'rgba(0,0,0,0.28)');
-  ctx.fillStyle = g;
-  roundRectPath(ctx, -L / 2, -W / 2, L, W, 5);
+  /* ---- asa dianteira ---- */
+  ctx.fillStyle = wing;
+  roundRectPath(ctx, 13.2, -10.4, 4.2, 20.8, 1.2);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-  ctx.lineWidth = 1.2;
+  ctx.fillStyle = trim;
+  ctx.fillRect(16.4, -10.4, 1.1, 20.8);
+  /* derivas laterais */
+  ctx.fillStyle = body;
+  ctx.fillRect(12.6, -10.6, 3.2, 1.7);
+  ctx.fillRect(12.6, 8.9, 3.2, 1.7);
+
+  /* ---- bico ---- */
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(15.2, -1.5); ctx.lineTo(15.2, 1.5);
+  ctx.lineTo(5.5, 3.6); ctx.lineTo(5.5, -3.6);
+  ctx.closePath(); ctx.fill();
+
+  /* ---- sidepods ---- */
+  const pods = ctx.createLinearGradient(0, -9, 0, 9);
+  pods.addColorStop(0, 'rgba(0,0,0,0.30)');
+  pods.addColorStop(0.28, body);
+  pods.addColorStop(0.72, body);
+  pods.addColorStop(1, 'rgba(0,0,0,0.30)');
+  ctx.fillStyle = pods;
+  ctx.beginPath();
+  ctx.moveTo(3.6, -5.2); ctx.lineTo(1.2, -7.4); ctx.lineTo(-7.5, -6.6);
+  ctx.lineTo(-10.5, -4.2); ctx.lineTo(-10.5, 4.2); ctx.lineTo(-7.5, 6.6);
+  ctx.lineTo(1.2, 7.4); ctx.lineTo(3.6, 5.2);
+  ctx.closePath(); ctx.fill();
+
+  /* entradas de ar dos sidepods */
+  ctx.fillStyle = 'rgba(10,12,16,0.55)';
+  roundRectPath(ctx, 0.4, -7.0, 2.6, 2.2, 0.8); ctx.fill();
+  roundRectPath(ctx, 0.4, 4.8, 2.6, 2.2, 0.8); ctx.fill();
+
+  /* ---- chassi central e capô do motor ---- */
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(5.5, -3.6); ctx.lineTo(5.5, 3.6);
+  ctx.lineTo(-13.5, 2.6); ctx.lineTo(-13.5, -2.6);
+  ctx.closePath(); ctx.fill();
+
+  /* faixa da equipe no eixo do carro */
+  ctx.fillStyle = trim;
+  ctx.fillRect(-13.5, -1.0, 19, 2.0);
+
+  /* ---- cockpit e halo ---- */
+  ctx.fillStyle = 'rgba(12,14,19,0.92)';
+  roundRectPath(ctx, -2.6, -2.9, 6.4, 5.8, 2.2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(150,200,235,0.30)';
+  roundRectPath(ctx, -1.6, -2.1, 4.2, 4.2, 1.6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,22,28,0.9)';
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.arc(1.0, 0, 3.9, -Math.PI * 0.72, Math.PI * 0.72);
   ctx.stroke();
 
-  /* cabine e vidros */
-  ctx.fillStyle = 'rgba(15,18,24,0.85)';
-  roundRectPath(ctx, -L * 0.16, -W * 0.34, L * 0.34, W * 0.68, 3);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(120,190,230,0.35)';
-  roundRectPath(ctx, L * 0.06, -W * 0.30, L * 0.10, W * 0.60, 2);
-  ctx.fill();
+  /* tomada de ar acima do piloto */
+  ctx.fillStyle = 'rgba(10,12,16,0.75)';
+  ctx.beginPath();
+  ctx.moveTo(-3.4, -2.2); ctx.lineTo(-3.4, 2.2);
+  ctx.lineTo(-6.4, 1.5); ctx.lineTo(-6.4, -1.5);
+  ctx.closePath(); ctx.fill();
 
-  /* detalhes: capô, asa traseira, faróis */
-  ctx.fillStyle = car.spec.accent;
-  ctx.fillRect(-L / 2 - 1.5, -W * 0.46, 3, W * 0.92);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillRect(L / 2 - 2.5, -W * 0.38, 2, 3.2);
-  ctx.fillRect(L / 2 - 2.5, W * 0.38 - 3.2, 2, 3.2);
+  /* ---- asa traseira ---- */
+  ctx.fillStyle = wing;
+  roundRectPath(ctx, -17.6, -9.2, 4.0, 18.4, 1.2);
+  ctx.fill();
+  ctx.fillStyle = trim;
+  ctx.fillRect(-17.6, -9.2, 1.1, 18.4);
+  ctx.fillStyle = body;
+  ctx.fillRect(-17.8, -9.4, 4.4, 1.6);
+  ctx.fillRect(-17.8, 7.8, 4.4, 1.6);
+
+  /* luz de chuva / freio */
   if (car.brakeGlow > 0) {
-    ctx.fillStyle = 'rgba(255,60,40,' + car.brakeGlow.toFixed(2) + ')';
-    ctx.fillRect(-L / 2, -W * 0.40, 2.5, W * 0.80);
+    ctx.fillStyle = 'rgba(255,58,40,' + (0.55 + car.brakeGlow * 0.45).toFixed(2) + ')';
+    roundRectPath(ctx, -16.2, -1.6, 1.8, 3.2, 0.8);
+    ctx.fill();
   }
 
+  /* piscada branca ao bater */
   if (car.hitTimer > 0) {
-    ctx.globalAlpha = clamp(car.hitTimer * 3, 0, 0.6);
+    ctx.globalAlpha = clamp(car.hitTimer * 3, 0, 0.65);
     ctx.fillStyle = '#fff';
-    roundRectPath(ctx, -L / 2, -W / 2, L, W, 5);
+    roundRectPath(ctx, -17, -10, 34, 20, 3);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
@@ -1583,6 +1908,108 @@ function drawMinimap(ctx, track, cars, x, y, size) {
   ctx.restore();
 }
 
+/* ===== season.js ===== */
+/* ============================================================
+   season.js - campeonato do modo história
+   Guarda a pontuação de todos os 20 pilotos, decide a ordem de
+   largada e monta as classificações. Tudo salvo no aparelho.
+   ============================================================ */
+'use strict';
+
+const Season = {
+  POINTS: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
+  CALENDAR: ['monza', 'spa', 'monaco', 'interlagos', 'arena'],
+  data: null,
+
+  load: function () {
+    try { this.data = JSON.parse(localStorage.getItem('gc_season') || 'null'); }
+    catch (e) { this.data = null; }
+    return this.data;
+  },
+  save: function () {
+    try { localStorage.setItem('gc_season', JSON.stringify(this.data)); } catch (e) { }
+  },
+  clear: function () {
+    this.data = null;
+    try { localStorage.removeItem('gc_season'); } catch (e) { }
+  },
+
+  start: function (teamId, driverIndex) {
+    const pts = {};
+    for (const t of TEAMS) {
+      for (let d = 0; d < t.drivers.length; d++) pts[t.id + '-' + d] = 0;
+    }
+    this.data = {
+      teamId: teamId, driverIndex: driverIndex || 0,
+      round: 0, points: pts, rounds: []
+    };
+    this.save();
+    return this.data;
+  },
+
+  active: function () { return !!this.data; },
+  finished: function () { return this.data && this.data.round >= this.CALENDAR.length; },
+  total: function () { return this.CALENDAR.length; },
+
+  trackOfRound: function (r) {
+    const id = this.CALENDAR[r];
+    return TRACK_DEFS.find(t => t.id === id);
+  },
+  currentTrack: function () { return this.trackOfRound(this.data.round); },
+
+  entries: function () { return allEntries(this.data.teamId, this.data.driverIndex); },
+  playerId: function () { return this.data.teamId + '-' + this.data.driverIndex; },
+
+  /* ordem de largada = classificação do campeonato (líder na pole).
+     Na primeira etapa, ainda sem pontos, vale a força da equipe. */
+  gridOrder: function () {
+    const pts = this.data.points;
+    const es = this.entries();
+    es.sort((a, b) => ((pts[b.id] || 0) - (pts[a.id] || 0)) || (b.team.tier - a.team.tier));
+    return es;
+  },
+
+  /* orderIds = ids na ordem de chegada */
+  applyResult: function (orderIds) {
+    const gained = {};
+    orderIds.forEach((id, i) => {
+      const p = i < this.POINTS.length ? this.POINTS[i] : 0;
+      gained[id] = p;
+      this.data.points[id] = (this.data.points[id] || 0) + p;
+    });
+    this.data.rounds.push({
+      track: this.CALENDAR[this.data.round],
+      order: orderIds.slice(0, 10),
+      playerPos: orderIds.indexOf(this.playerId()) + 1
+    });
+    this.data.round++;
+    this.save();
+    return gained;
+  },
+
+  driverStandings: function () {
+    const pts = this.data.points;
+    return this.entries()
+      .map(e => ({ entry: e, points: pts[e.id] || 0 }))
+      .sort((a, b) => (b.points - a.points) || (b.entry.team.tier - a.entry.team.tier));
+  },
+
+  teamStandings: function () {
+    const pts = this.data.points;
+    return TEAMS
+      .map(t => ({
+        team: t,
+        points: t.drivers.reduce((s, d, i) => s + (pts[t.id + '-' + i] || 0), 0)
+      }))
+      .sort((a, b) => (b.points - a.points) || (b.team.tier - a.team.tier));
+  },
+
+  playerPosition: function () {
+    const st = this.driverStandings();
+    return st.findIndex(r => r.entry.id === this.playerId()) + 1;
+  }
+};
+
 /* ===== game.js ===== */
 /* ============================================================
    game.js - laço principal, telas, controles e regras
@@ -1593,14 +2020,17 @@ const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
   mode: 'race',            /* race | time | drift */
   trackDef: TRACK_DEFS[0],
-  carSpec: CAR_TYPES[0],
+  teamId: TEAMS[0].id,
   track: null, layer: null, marks: null, parts: null,
   cars: [], ais: [], player: null,
   cam: { x: 0, y: 0, zoom: 1 },
   clock: 0, countdown: 0, raceTime: 0, driftTimeLeft: 0,
   totalLaps: 3, finishOrder: [],
-  settings: { autoGas: false, assist: true, sound: true, opponents: 5, difficulty: 1 },
+  settings: { autoGas: false, assist: true, sound: true, opponents: 9, difficulty: 1, laps: 0 },
   records: {},
+  teamPickFor: 'quick',      /* de onde a tela de equipes foi aberta */
+  seasonTab: 'cal',
+  lastPoints: null,
   toast: { text: '', life: 0 },
   driftPop: { text: '', life: 0 }
 };
@@ -1610,11 +2040,16 @@ function loadStore() {
   try {
     const s = JSON.parse(localStorage.getItem('gc_settings') || '{}');
     Object.assign(Game.settings, s);
+    if (s.teamId && teamById(s.teamId).id === s.teamId) Game.teamId = s.teamId;
+    delete Game.settings.teamId;
     Game.records = JSON.parse(localStorage.getItem('gc_records') || '{}');
   } catch (e) { }
 }
 function saveSettings() {
-  try { localStorage.setItem('gc_settings', JSON.stringify(Game.settings)); } catch (e) { }
+  try {
+    const s = Object.assign({}, Game.settings, { teamId: Game.teamId });
+    localStorage.setItem('gc_settings', JSON.stringify(s));
+  } catch (e) { }
 }
 function saveRecords() {
   try { localStorage.setItem('gc_records', JSON.stringify(Game.records)); } catch (e) { }
@@ -1702,24 +2137,44 @@ function prepareTrack(def) {
   Game.parts = new Particles();
 }
 
+/* Quem está no grid, e em que ordem. */
+function buildEntries() {
+  if (Game.mode === 'story') return Season.gridOrder();
+  const team = teamById(Game.teamId);
+  const player = makeEntry(team, 0, true);
+  if (Game.mode !== 'race') return [player];
+
+  const others = [];
+  for (const t of TEAMS) {
+    for (let d = 0; d < t.drivers.length; d++) {
+      if (t.id === team.id && d === 0) continue;
+      others.push(makeEntry(t, d, false));
+    }
+  }
+  others.sort((a, b) => b.team.tier - a.team.tier);
+  const grid = others.slice(0, clamp(Game.settings.opponents, 0, others.length));
+  grid.push(player);            /* na corrida rápida o jogador larga por último */
+  return grid;
+}
+
 function startRace() {
   const def = Game.trackDef;
   if (!Game.track || Game.track.def.id !== def.id) prepareTrack(def);
   else { Game.marks = makeMarksLayer(Game.track); Game.parts = new Particles(); }
 
-  const opponents = Game.mode === 'race' ? Game.settings.opponents : 0;
-  const slot = opponents;                       /* jogador larga por último */
-  const g = makeGrid(Game.track, Game.carSpec, opponents, slot, Game.settings.difficulty);
+  const entries = buildEntries();
+  const g = makeGrid(Game.track, entries, Game.settings.difficulty);
   Game.cars = g.cars; Game.ais = g.ais;
-  Game.player = g.cars[slot];
+  Game.player = g.cars.find(c => c.isPlayer);
   Game.player.assist = Game.settings.assist ? 0.6 : 0.12;
   for (const c of Game.cars) { if (!c.isPlayer) c.assist = 0.5; }
 
-  Game.totalLaps = Game.mode === 'race' ? def.laps : (Game.mode === 'time' ? 99 : 99);
+  Game.totalLaps = (Game.mode === 'race' || Game.mode === 'story')
+    ? (Game.mode === 'story' ? def.laps : (Game.settings.laps || def.laps)) : 99;
   Game.finishOrder = [];
   Game.raceTime = 0;
   Game.driftTimeLeft = 90;
-  Game.countdown = Game.mode === 'race' ? 3.6 : 2.2;
+  Game.countdown = (Game.mode === 'race' || Game.mode === 'story') ? 3.6 : 2.2;
   Game.state = 'countdown';
   Game.clock = performance.now();
   Game.cam.x = Game.player.x; Game.cam.y = Game.player.y;
@@ -1807,7 +2262,7 @@ function simulate(dt, now) {
   G.parts.update(dt);
 
   /* fim de corrida */
-  if (G.state === 'racing' && G.mode === 'race') {
+  if (G.state === 'racing' && (G.mode === 'race' || G.mode === 'story')) {
     for (const c of G.cars) {
       if (!c.finished && c.lap > G.totalLaps) {
         c.finished = true;
@@ -1830,6 +2285,16 @@ function onLapDone(p) {
   }
 }
 
+/* Classificação final: quem cruzou, por tempo; o resto, por distância
+   percorrida no momento em que o jogador terminou. */
+function finishingOrder() {
+  return Game.cars.slice().sort((a, b) => {
+    if (a.finished && b.finished) return a.finishTime - b.finishTime;
+    if (a.finished !== b.finished) return a.finished ? -1 : 1;
+    return b.progress() - a.progress();
+  });
+}
+
 function endRace() {
   Game.state = 'over';
   const p = Game.player;
@@ -1838,6 +2303,12 @@ function endRace() {
   let newDrift = false;
   if (p.driftScore > (r.drift || 0)) { r.drift = p.driftScore; newDrift = true; }
   saveRecords();
+
+  if (Game.mode === 'story' && Season.active()) {
+    const order = finishingOrder();
+    Game.lastOrder = order;
+    Game.lastPoints = Season.applyResult(order.map(c => c.entry.id));
+  }
   setTimeout(() => showResults(newDrift), 700);
 }
 
@@ -1922,8 +2393,11 @@ let hudAcc = 0;
 
 function updateHudStatic() {
   el('hud-track').textContent = Game.trackDef.name;
-  el('hud-mode').textContent = Game.mode === 'race' ? 'CORRIDA' : (Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT');
-  el('hud-pos-wrap').classList.toggle('hidden', Game.mode !== 'race');
+  el('hud-mode').textContent = Game.mode === 'story'
+    ? (Game.trackDef.gp || 'TEMPORADA').toUpperCase()
+    : (Game.mode === 'race' ? 'CORRIDA' : (Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT'));
+  const disputa = Game.mode === 'race' || Game.mode === 'story';
+  el('hud-pos-wrap').classList.toggle('hidden', !disputa);
   el('hud-lap-wrap').classList.toggle('hidden', Game.mode === 'drift');
   el('hud-best-wrap').classList.toggle('hidden', Game.mode === 'drift');
   el('hud-drift-wrap').classList.toggle('hidden', false);
@@ -1955,7 +2429,7 @@ function hudTick(dt) {
   el('hud-best').textContent = fmtTime(p.bestLap || r.best);
   el('hud-drift').textContent = (p.driftScore + Math.round(p.driftBank * p.driftCombo)).toLocaleString('pt-BR');
 
-  if (G.mode === 'race') {
+  if (G.mode === 'race' || G.mode === 'story') {
     const sorted = G.cars.slice().sort((a, b) => b.progress() - a.progress());
     el('hud-pos').textContent = (sorted.indexOf(p) + 1) + '/' + G.cars.length;
   }
@@ -1990,6 +2464,8 @@ function togglePause() {
 
 function quitToMenu() {
   Game.state = 'menu';
+  const b = el('btn-season-abandon');
+  if (b) { delete b.dataset.armed; b.textContent = 'Abandonar temporada'; }
   document.body.classList.remove('playing');
   Sound.updateEngine(0, 0, 0, false);
   showScreen('screen-menu');
@@ -1999,14 +2475,21 @@ function quitToMenu() {
 function showResults(newDrift) {
   const G = Game, p = G.player;
   const box = el('results-body');
+  const disputa = G.mode === 'race' || G.mode === 'story';
   let pos = 1;
-  if (G.mode === 'race') {
-    const sorted = G.cars.slice().sort((a, b) => b.progress() - a.progress());
+  if (disputa) {
+    const sorted = G.lastOrder || finishingOrder();
     pos = sorted.indexOf(p) + 1;
   }
   const r = rec(G.trackDef.id);
   const rows = [];
-  if (G.mode === 'race') rows.push(['Posição final', ordinal(pos) + ' de ' + G.cars.length]);
+  if (disputa) rows.push(['Posição final', ordinal(pos) + ' de ' + G.cars.length]);
+  if (G.mode === 'story') {
+    const ganhos = (G.lastPoints && G.lastPoints[p.entry.id]) || 0;
+    rows.push(['Pontos nesta etapa', '+' + ganhos]);
+    rows.push(['No campeonato', ordinal(Season.playerPosition()) + ' · ' +
+      Season.driverStandings().find(r => r.entry.id === Season.playerId()).points + ' pts']);
+  }
   if (G.mode !== 'drift') {
     rows.push(['Tempo total', fmtTime(G.raceTime)]);
     rows.push(['Melhor volta', fmtTime(p.bestLap)]);
@@ -2015,20 +2498,145 @@ function showResults(newDrift) {
   rows.push(['Pontos de drift', p.driftScore.toLocaleString('pt-BR') + (newDrift ? '  🏆' : '')]);
   rows.push(['Recorde de drift', (r.drift || 0).toLocaleString('pt-BR')]);
 
-  el('results-title').textContent = G.mode === 'race'
+  el('results-title').textContent = disputa
     ? (pos === 1 ? 'VITÓRIA!' : ordinal(pos) + ' lugar')
     : (G.mode === 'drift' ? 'Tempo esgotado' : 'Sessão encerrada');
-  el('results-sub').textContent = G.trackDef.name + ' · ' + p.spec.name;
+  el('results-sub').textContent = (G.mode === 'story' ? G.trackDef.gp + ' · ' : G.trackDef.name + ' · ')
+    + teamById(G.teamId).name;
   box.innerHTML = rows.map(x => '<div class="row"><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+
+  /* no modo história, a classificação completa da etapa */
+  const cls = el('results-class');
+  cls.classList.toggle('hidden', G.mode !== 'story');
+  if (G.mode === 'story' && G.lastOrder) {
+    cls.innerHTML = G.lastOrder.map((c, i) => {
+      const pts = (G.lastPoints && G.lastPoints[c.entry.id]) || 0;
+      return '<div class="stand' + (c.isPlayer ? ' me' : '') + '">' +
+        '<span class="pos">' + (i + 1) + '</span>' +
+        '<i class="dot" style="background:' + c.entry.team.color + '"></i>' +
+        '<span class="who">' + (c.isPlayer ? c.entry.realName + ' (você)' : c.name) +
+        ' <em>' + c.entry.team.short + '</em></span>' +
+        '<span class="pts">' + (pts ? '+' + pts : '—') + '</span></div>';
+    }).join('');
+  }
+
+  el('btn-results-again').textContent = G.mode === 'story' ? 'Continuar' : 'Correr de novo';
+  el('btn-results-menu').textContent = G.mode === 'story' ? 'Ver temporada' : 'Menu';
   showScreen('screen-results');
+}
+
+/* ---------------- modo história ---------------- */
+function openStory() {
+  if (Season.active()) { showSeason(); return; }
+  Game.teamPickFor = 'story';
+  el('car-title').textContent = 'Escolha sua equipe para a temporada';
+  buildCarList();
+  showScreen('screen-car');
+}
+
+function beginSeason(teamId) {
+  Season.start(teamId, 0);
+  Game.teamId = teamId;
+  saveSettings();
+  showSeason();
+}
+
+function showSeason() {
+  renderSeason();
+  showScreen('screen-season');
+}
+
+function renderSeason() {
+  const d = Season.data;
+  if (!d) { showScreen('screen-menu'); return; }
+  const team = teamById(d.teamId);
+  const acabou = Season.finished();
+
+  el('season-title').textContent = acabou ? 'Temporada encerrada' : 'Temporada';
+  el('season-sub').textContent = team.country + ' ' + team.name + ' · ' +
+    (acabou ? Season.total() + ' etapas disputadas'
+      : 'Etapa ' + (d.round + 1) + ' de ' + Season.total());
+  el('season-pos').textContent = ordinal(Season.playerPosition());
+
+  /* aba ativa */
+  document.querySelectorAll('#screen-season .tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === Game.seasonTab));
+
+  const body = el('season-body');
+  if (Game.seasonTab === 'cal') {
+    let html = '';
+    if (acabou) {
+      const campeao = Season.driverStandings()[0];
+      const eu = campeao.entry.id === Season.playerId();
+      html += '<div class="champion"><div class="cup">' + (eu ? '🏆' : '🏁') + '</div>' +
+        '<b>' + (eu ? 'Você é o campeão!' : campeao.entry.realName + ' é o campeão') + '</b>' +
+        '<span>' + campeao.entry.team.name + ' · ' + campeao.points + ' pontos</span></div>';
+    }
+    html += Season.CALENDAR.map((id, i) => {
+      const t = TRACK_DEFS.find(x => x.id === id);
+      const feito = i < d.round;
+      const agora = i === d.round;
+      const r = d.rounds[i];
+      return '<div class="round' + (feito ? ' done' : '') + (agora ? ' next' : '') + '">' +
+        '<span class="round-n">' + (i + 1) + '</span>' +
+        '<span class="round-info"><b>' + t.country + ' ' + t.gp + '</b>' +
+        '<span>' + t.name + ' · ' + t.laps + ' voltas</span></span>' +
+        '<span class="round-res">' + (r ? ordinal(r.playerPos) : (agora ? 'próxima' : '')) + '</span>' +
+        '</div>';
+    }).join('');
+    body.innerHTML = html;
+  } else if (Game.seasonTab === 'drv') {
+    body.innerHTML = Season.driverStandings().map((r, i) =>
+      '<div class="stand' + (r.entry.id === Season.playerId() ? ' me' : '') + '">' +
+      '<span class="pos">' + (i + 1) + '</span>' +
+      '<i class="dot" style="background:' + r.entry.team.color + '"></i>' +
+      '<span class="who">' + r.entry.realName + ' <em>' + r.entry.team.short + '</em></span>' +
+      '<span class="pts">' + r.points + '</span></div>').join('');
+  } else {
+    body.innerHTML = Season.teamStandings().map((r, i) =>
+      '<div class="stand' + (r.team.id === d.teamId ? ' me' : '') + '">' +
+      '<span class="pos">' + (i + 1) + '</span>' +
+      '<i class="dot" style="background:' + r.team.color + '"></i>' +
+      '<span class="who">' + r.team.country + ' ' + r.team.name + '</span>' +
+      '<span class="pts">' + r.points + '</span></div>').join('');
+  }
+
+  const btn = el('btn-season-race');
+  if (acabou) {
+    btn.textContent = 'Nova temporada';
+  } else {
+    const t = Season.currentTrack();
+    btn.textContent = 'Correr · ' + t.gp;
+  }
+}
+
+function runSeasonRace() {
+  if (Season.finished()) {
+    Season.clear();
+    openStory();
+    return;
+  }
+  Game.mode = 'story';
+  Game.trackDef = Season.currentTrack();
+  Game.teamId = Season.data.teamId;
+  startRace();
 }
 
 /* ---------------- menus ---------------- */
 function refreshMenu() {
   el('menu-track').textContent = Game.trackDef.country + ' ' + Game.trackDef.name;
-  el('menu-car').textContent = Game.carSpec.name;
+  const tm = teamById(Game.teamId);
+  el('menu-car').textContent = tm.country + ' ' + tm.name;
   const r = rec(Game.trackDef.id);
   el('menu-record').textContent = r.best ? 'Recorde: ' + fmtTime(r.best) : 'Sem recorde ainda';
+  const sb = el('btn-play-story');
+  if (Season.active()) {
+    sb.textContent = Season.finished()
+      ? '🏆 Temporada encerrada'
+      : '🏆 Continuar temporada · etapa ' + (Season.data.round + 1) + '/' + Season.total();
+  } else {
+    sb.textContent = '🏆 Modo História';
+  }
 }
 
 function buildTrackList() {
@@ -2081,23 +2689,42 @@ function drawThumb(cv, def) {
 function buildCarList() {
   const wrap = el('car-list');
   wrap.innerHTML = '';
-  CAR_TYPES.forEach(spec => {
+  TEAMS.forEach(team => {
     const card = document.createElement('button');
-    card.className = 'card car-card' + (spec.id === Game.carSpec.id ? ' active' : '');
+    card.className = 'card car-card' + (team.id === Game.teamId ? ' active' : '');
     const bars = ['Potência', 'Freio', 'Drift'].map((label, i) =>
       '<div class="bar"><span>' + label + '</span><i>' +
-      '<u style="width:' + (spec.stats[i] / 5 * 100) + '%"></u></i></div>').join('');
+      '<u style="width:' + (team.stats[i] / 5 * 100) + '%"></u></i></div>').join('');
     card.innerHTML =
-      '<canvas class="thumb car-thumb" width="150" height="110"></canvas>' +
-      '<div class="card-info"><h3>' + spec.name + '</h3><p>' + spec.tag + '</p>' + bars + '</div>';
-    card.onclick = () => { Game.carSpec = spec; buildCarList(); refreshMenu(); Sound.blip(660, 0.06, 'triangle', 0.12); };
+      '<canvas class="thumb car-thumb" width="160" height="120"></canvas>' +
+      '<div class="card-info"><h3>' + team.country + ' ' + team.name + '</h3>' +
+      '<p>' + team.drivers.map(d => d.name).join(' · ') + '</p>' + bars + '</div>';
+    card.onclick = () => {
+      Sound.blip(660, 0.06, 'triangle', 0.12);
+      if (Game.teamPickFor === 'story') { beginSeason(team.id); return; }
+      Game.teamId = team.id; saveSettings();
+      buildCarList(); refreshMenu();
+    };
     wrap.appendChild(card);
-    const c = card.querySelector('.thumb').getContext('2d');
-    c.fillStyle = '#22262e'; c.fillRect(0, 0, 150, 110);
-    c.save(); c.translate(75, 55); c.scale(2.4, 2.4); c.rotate(-Math.PI / 2);
-    drawCar(c, { x: 0, y: 0, angle: 0, spec: spec, steerAngle: 0.25, hitTimer: 0, brakeGlow: 0 });
-    c.restore();
+    drawCarThumb(card.querySelector('.thumb'), team);
   });
+}
+
+/* miniatura do monoposto com as cores da equipe */
+function drawCarThumb(cv, team) {
+  const c = cv.getContext('2d');
+  const g = c.createLinearGradient(0, 0, 0, cv.height);
+  g.addColorStop(0, '#252a33'); g.addColorStop(1, '#1a1e25');
+  c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+  c.save();
+  c.translate(cv.width / 2, cv.height / 2);
+  c.scale(2.5, 2.5);
+  c.rotate(-Math.PI / 2);
+  drawCar(c, {
+    x: 0, y: 0, angle: 0, steerAngle: 0.3, hitTimer: 0, brakeGlow: 0,
+    spec: { color: team.color, accent: team.color2, wing: team.wing }
+  });
+  c.restore();
 }
 
 function buildSettings() {
@@ -2109,16 +2736,23 @@ function buildSettings() {
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
   el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][s.difficulty];
+  el('set-laps').value = s.laps;
+  el('set-laps-val').textContent = s.laps ? s.laps : 'padrão';
 }
 
 /* ---------------- ligações da interface ---------------- */
 function wireUI() {
+  el('btn-play-story').onclick = openStory;
   el('btn-play-race').onclick = () => { Game.mode = 'race'; startRace(); };
   el('btn-play-time').onclick = () => { Game.mode = 'time'; startRace(); };
   el('btn-play-drift').onclick = () => { Game.mode = 'drift'; startRace(); };
 
   el('btn-open-tracks').onclick = () => { buildTrackList(); showScreen('screen-track'); };
-  el('btn-open-cars').onclick = () => { buildCarList(); showScreen('screen-car'); };
+  el('btn-open-cars').onclick = () => {
+    Game.teamPickFor = 'quick';
+    el('car-title').textContent = 'Escolha a equipe';
+    buildCarList(); showScreen('screen-car');
+  };
   el('btn-open-settings').onclick = () => { buildSettings(); showScreen('screen-settings'); };
   document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => { refreshMenu(); showScreen('screen-menu'); });
 
@@ -2126,8 +2760,28 @@ function wireUI() {
   el('btn-resume').onclick = togglePause;
   el('btn-restart').onclick = startRace;
   el('btn-quit').onclick = quitToMenu;
-  el('btn-results-again').onclick = startRace;
-  el('btn-results-menu').onclick = quitToMenu;
+  el('btn-results-again').onclick = () => {
+    if (Game.mode === 'story') { document.body.classList.remove('playing'); showSeason(); }
+    else startRace();
+  };
+  el('btn-results-menu').onclick = () => {
+    if (Game.mode === 'story') { document.body.classList.remove('playing'); showSeason(); }
+    else quitToMenu();
+  };
+
+  el('btn-season-race').onclick = runSeasonRace;
+  el('btn-season-quit').onclick = quitToMenu;
+  el('btn-season-abandon').onclick = () => {
+    if (el('btn-season-abandon').dataset.armed) {
+      Season.clear(); quitToMenu();
+    } else {
+      el('btn-season-abandon').dataset.armed = '1';
+      el('btn-season-abandon').textContent = 'Tem certeza? Toque de novo';
+    }
+  };
+  document.querySelectorAll('#screen-season .tab').forEach(t => {
+    t.onclick = () => { Game.seasonTab = t.dataset.tab; renderSeason(); };
+  });
 
   el('set-autogas').onchange = e => { Game.settings.autoGas = e.target.checked; saveSettings(); updateHudStatic(); };
   el('set-assist').onchange = e => {
@@ -2142,6 +2796,10 @@ function wireUI() {
   el('set-difficulty').oninput = e => {
     Game.settings.difficulty = +e.target.value;
     el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][+e.target.value]; saveSettings();
+  };
+  el('set-laps').oninput = e => {
+    Game.settings.laps = +e.target.value;
+    el('set-laps-val').textContent = +e.target.value ? e.target.value : 'padrão'; saveSettings();
   };
   el('btn-reset-records').onclick = () => {
     Game.records = {}; saveRecords(); refreshMenu(); buildTrackList();
@@ -2173,6 +2831,7 @@ setInterval(() => {
 /* ---------------- início ---------------- */
 function boot() {
   loadStore();
+  Season.load();
   resize();
   bindTouch();
   wireUI();

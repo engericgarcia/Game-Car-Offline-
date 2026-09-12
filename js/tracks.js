@@ -7,7 +7,7 @@
 
 const TRACK_DEFS = [
   {
-    id: 'monza', scale: 1.5,
+    id: 'monza', scale: 1.5, gp: 'GP da Itália',
     name: 'Monza',
     sub: 'Templo da Velocidade · 11 curvas',
     country: '🇮🇹',
@@ -36,7 +36,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'monaco', scale: 1.09,
+    id: 'monaco', scale: 1.09, gp: 'GP de Mônaco',
     name: 'Mônaco',
     sub: 'Circuito de rua · 19 curvas',
     country: '🇲🇨',
@@ -69,7 +69,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'interlagos', scale: 1.41,
+    id: 'interlagos', scale: 1.41, gp: 'GP do Brasil',
     name: 'Interlagos',
     sub: 'Autódromo José Carlos Pace · 15 curvas',
     country: '🇧🇷',
@@ -98,7 +98,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'spa', scale: 1.98,
+    id: 'spa', scale: 1.98, gp: 'GP da Bélgica',
     name: 'Spa-Francorchamps',
     sub: 'Ardenas · 19 curvas · a mais longa',
     country: '🇧🇪',
@@ -129,7 +129,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'arena', scale: 1.26,
+    id: 'arena', scale: 1.26, gp: 'Corrida dos Campeões',
     name: 'Arena de Drift',
     sub: 'Treino livre · pista larguíssima',
     country: '🏁',
@@ -144,6 +144,8 @@ const TRACK_DEFS = [
 ];
 
 const TRACK_SPACING = 5;   /* distância entre pontos da linha central */
+const GRID_GAP = 46;       /* distância entre posições de largada */
+const GRID_BACK = 58;      /* recuo da pole em relação à linha */
 
 /* Constrói toda a geometria derivada de uma pista */
 function buildTrack(def) {
