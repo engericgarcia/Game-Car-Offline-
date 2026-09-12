@@ -92,7 +92,13 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
 function bindTouch() {
   document.querySelectorAll('[data-btn]').forEach(el => {
     const k = el.dataset.btn;
-    const on = e => { e.preventDefault(); touch[k] = true; el.classList.add('down'); Sound.init(); };
+    const on = e => {
+      e.preventDefault();
+      touch[k] = true;
+      el.classList.add('down');
+      if (navigator.vibrate) navigator.vibrate(k === 'brake' ? 14 : 8);
+      Sound.init();
+    };
     const off = e => { e.preventDefault(); touch[k] = false; el.classList.remove('down'); };
     el.addEventListener('pointerdown', on);
     el.addEventListener('pointerup', off);

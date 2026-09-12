@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -44,9 +44,23 @@
     <button class="tbtn steer" data-btn="right" aria-label="Direita">▶</button>
   </div>
   <div class="pad pad-right">
-    <button class="tbtn brake" data-btn="brake" aria-label="Freio">FREIO</button>
-    <button class="tbtn drift" data-btn="drift" aria-label="Freio de mão">DRIFT</button>
-    <button class="tbtn gas" id="btn-gas" data-btn="gas" aria-label="Acelerar">GÁS</button>
+    <button class="tbtn drift" data-btn="drift" aria-label="Freio de mão">
+      <span class="lever"></span>DRIFT
+    </button>
+    <button class="pedal pedal-brake" data-btn="brake" aria-label="Freio">
+      <span class="pedal-base"></span>
+      <span class="pedal-pad">
+        <i></i><i></i><i></i><i></i>
+        <b>FREIO</b>
+      </span>
+    </button>
+    <button class="pedal pedal-gas" id="btn-gas" data-btn="gas" aria-label="Acelerar">
+      <span class="pedal-base"></span>
+      <span class="pedal-pad">
+        <i></i><i></i><i></i><i></i><i></i>
+        <b>GÁS</b>
+      </span>
+    </button>
   </div>
   <div class="pad-hint">segure <b>DRIFT</b> na entrada da curva</div>
 </div>
@@ -161,14 +175,14 @@
   </div>
 </section>
 
-<script src="js/utils.js?v=10"></script>
-<script src="js/teams.js?v=10"></script>
-<script src="js/tracks.js?v=10"></script>
-<script src="js/car.js?v=10"></script>
-<script src="js/ai.js?v=10"></script>
-<script src="js/audio.js?v=10"></script>
-<script src="js/render.js?v=10"></script>
-<script src="js/season.js?v=10"></script>
-<script src="js/game.js?v=10"></script>
+<script src="js/utils.js?v=12"></script>
+<script src="js/teams.js?v=12"></script>
+<script src="js/tracks.js?v=12"></script>
+<script src="js/car.js?v=12"></script>
+<script src="js/ai.js?v=12"></script>
+<script src="js/audio.js?v=12"></script>
+<script src="js/render.js?v=12"></script>
+<script src="js/season.js?v=12"></script>
+<script src="js/game.js?v=12"></script>
 </body>
 </html>

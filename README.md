@@ -54,10 +54,14 @@ E abra `http://localhost:8123`.
 | Ação | Celular | Teclado |
 |---|---|---|
 | Dirigir | botões ◀ ▶ | ← → |
-| Acelerar | **GÁS** | ↑ |
-| Frear / dar ré | **FREIO** | ↓ |
-| Derrapar (freio de mão) | **DRIFT** | espaço |
+| Acelerar | pedal **GÁS** | ↑ |
+| Frear / dar ré | pedal **FREIO** | ↓ |
+| Derrapar (freio de mão) | alavanca **DRIFT** | espaço |
 | Pausar | botão ‖ | P ou Esc |
+
+O gás e o freio são pedais com curso: ao encostar, a placa gira no eixo de cima
+e afunda no alojamento, acendendo. No Android o aparelho ainda dá um toque de
+vibração — curto no gás, mais firme no freio.
 
 **O segredo do drift:** chegue rápido, segure **DRIFT** na entrada da curva e
 mantenha o **GÁS** durante a derrapagem. Quanto mais tempo atravessado, maior o

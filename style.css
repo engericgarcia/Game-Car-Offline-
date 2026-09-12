@@ -50,16 +50,56 @@ body.landscape #toast{top:calc(150px + var(--sat))}
 .pad{position:fixed;bottom:calc(14px + var(--sab));pointer-events:auto}
 .pad-left{left:calc(14px + var(--sal));display:flex;gap:10px;align-items:flex-end}
 .pad-right{right:calc(14px + var(--sar));display:grid;gap:10px;
-  grid-template-areas:"brk ." "drf gas";justify-items:end;align-items:end}
-.pad-right .brake{grid-area:brk}
+  grid-template-areas:"drf drf" "brk gas";justify-items:stretch;align-items:end}
 .pad-right .drift{grid-area:drf}
-.pad-right .gas{grid-area:gas}
-.pad-hint{position:fixed;right:calc(18px + var(--sar));bottom:calc(196px + var(--sab));
+.pad-right .pedal-brake{grid-area:brk}
+.pad-right .pedal-gas{grid-area:gas}
+
+/* ---------------- pedais ----------------
+   O pedal é uma placa inclinada sobre um alojamento. Ao pisar, ela gira
+   no eixo de cima e afunda: é a rotação que dá a sensação de curso. */
+.pedal{position:relative;width:84px;height:116px;padding:0;border:0;background:none;
+  perspective:500px;perspective-origin:50% 12%}
+.pedal-brake{width:70px;height:104px}
+.pedal-base{position:absolute;left:5px;right:5px;top:12px;bottom:0;border-radius:11px;
+  background:linear-gradient(180deg,#13161c,#0a0c10);
+  border:1px solid rgba(255,255,255,.06);
+  box-shadow:inset 0 10px 20px rgba(0,0,0,.75)}
+.pedal-pad{position:absolute;left:0;right:0;top:0;height:calc(100% - 12px);
+  transform-origin:50% 0%;transform:rotateX(40deg) translateZ(10px);
+  transition:transform .09s cubic-bezier(.3,.7,.4,1), box-shadow .09s ease-out;
+  border-radius:13px;display:flex;flex-direction:column;align-items:center;
+  justify-content:space-evenly;padding:12px 9px 8px;
+  background:linear-gradient(180deg,var(--ped-hi),var(--ped-lo));
+  border:1.5px solid var(--ped-edge);
+  box-shadow:0 12px 20px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.22)}
+/* ranhuras antiderrapantes */
+.pedal-pad i{display:block;width:74%;height:3px;border-radius:2px;
+  background:rgba(0,0,0,.34);box-shadow:0 1px 0 rgba(255,255,255,.14)}
+.pedal-pad b{font-size:11px;font-weight:900;letter-spacing:1.2px;color:var(--ped-txt);
+  text-shadow:0 1px 2px rgba(0,0,0,.6);margin-top:2px}
+/* pisado: gira para perto do plano, desce e acende */
+.pedal.down .pedal-pad{transform:rotateX(4deg) translateZ(0) translateY(13px);
+  box-shadow:0 3px 7px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12),
+    0 0 22px var(--ped-glow)}
+.pedal.down .pedal-base{box-shadow:inset 0 10px 20px rgba(0,0,0,.85),0 0 14px var(--ped-glow)}
+.pedal-gas{--ped-hi:#33413a;--ped-lo:#18211c;--ped-edge:rgba(74,222,128,.55);
+  --ped-glow:rgba(74,222,128,.40);--ped-txt:#bff3d1}
+.pedal-brake{--ped-hi:#41322f;--ped-lo:#211918;--ped-edge:rgba(229,69,58,.55);
+  --ped-glow:rgba(229,69,58,.40);--ped-txt:#f7c4bd}
+
+/* freio de mão: barra com alavanca, acima dos pedais */
+.pad-right .drift{width:100%;height:48px;border-radius:15px;font-size:12px;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.pad-right .drift .lever{width:16px;height:5px;border-radius:3px;background:var(--acc2);
+  transform:rotate(-22deg);transition:transform .09s ease-out;box-shadow:0 0 8px rgba(229,69,58,.5)}
+.pad-right .drift.down .lever{transform:rotate(-52deg) translate(1px,-2px)}
+.pad-hint{position:fixed;right:calc(18px + var(--sar));bottom:calc(200px + var(--sab));
   font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.3px;pointer-events:none;
   text-shadow:0 1px 6px rgba(0,0,0,.8);animation:fadeAway 1s ease 6s forwards}
 .pad-hint b{color:var(--acc2)}
 @keyframes fadeAway{to{opacity:0}}
-body.landscape .pad-hint{bottom:calc(120px + var(--sab))}
+body.landscape .pad-hint{bottom:calc(176px + var(--sab))}
 .tbtn{width:78px;height:78px;border-radius:50%;font-weight:900;font-size:15px;
   background:rgba(28,33,42,.60);border:1.5px solid rgba(255,255,255,.16);
   backdrop-filter:blur(8px);transition:transform .07s,background .07s;display:grid;place-items:center}
@@ -68,10 +108,15 @@ body.landscape .pad-hint{bottom:calc(120px + var(--sab))}
 .tbtn.gas{width:92px;height:92px;background:rgba(74,222,128,.20);border-color:rgba(74,222,128,.45)}
 .tbtn.drift{background:rgba(229,69,58,.20);border-color:rgba(229,69,58,.45);font-size:13px}
 .tbtn.brake{width:64px;height:64px;font-size:12px}
-@media (max-height:420px){ .tbtn{width:64px;height:64px} .tbtn.gas{width:76px;height:76px}
-  .tbtn.brake{width:54px;height:54px;font-size:10px} }
-@media (max-width:380px){ .tbtn{width:68px;height:68px} .tbtn.gas{width:82px;height:82px}
-  .tbtn.brake{width:56px;height:56px;font-size:10px} }
+@media (max-height:430px){
+  .tbtn{width:64px;height:64px}
+  .pedal{width:74px;height:92px} .pedal-brake{width:62px;height:84px}
+  .pad-right .drift{height:40px}
+}
+@media (max-width:380px){
+  .tbtn{width:68px;height:68px}
+  .pedal{width:74px;height:104px} .pedal-brake{width:62px;height:94px}
+}
 
 /* ---------------- telas ---------------- */
 .screen{position:fixed;inset:0;display:grid;place-items:center;padding:calc(16px + var(--sat)) 16px calc(16px + var(--sab));
