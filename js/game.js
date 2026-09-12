@@ -714,6 +714,12 @@ function drawCarThumb(cv, team) {
   c.restore();
 }
 
+function setDifficultyLabel(i) {
+  const d = DIFFICULTIES[clamp(i, 0, DIFFICULTIES.length - 1)];
+  el('set-difficulty-val').textContent = d.name;
+  el('set-difficulty-desc').textContent = d.desc;
+}
+
 function buildSettings() {
   const s = Game.settings;
   el('set-autogas').checked = s.autoGas;
@@ -722,7 +728,7 @@ function buildSettings() {
   el('set-opponents').value = s.opponents;
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
-  el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][s.difficulty];
+  setDifficultyLabel(s.difficulty);
   el('set-laps').value = s.laps;
   el('set-laps-val').textContent = s.laps ? s.laps : 'padrão';
 }
@@ -782,7 +788,7 @@ function wireUI() {
   };
   el('set-difficulty').oninput = e => {
     Game.settings.difficulty = +e.target.value;
-    el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][+e.target.value]; saveSettings();
+    setDifficultyLabel(+e.target.value); saveSettings();
   };
   el('set-laps').oninput = e => {
     Game.settings.laps = +e.target.value;

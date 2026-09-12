@@ -189,7 +189,7 @@ function buildTrack(def) {
     if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
     if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
   }
-  const pad = def.width / 2 + def.runoff + 20;
+  const pad = def.width / 2 + def.runoff + 76;   /* cabe a arquibancada */
 
   /* grade espacial para achar o ponto mais próximo sem varrer tudo */
   const cell = 48;

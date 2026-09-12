@@ -84,12 +84,19 @@ function drawTree(ctx, x, y, r, rng) {
   ctx.beginPath(); ctx.arc(x - r * 0.28, y - r * 0.30, r * 0.48, 0, TAU); ctx.fill();
 }
 
-/* arquibancada de frente para a pista */
-function drawGrandstand(ctx, p, side, len, depth, rng) {
+/* Arquibancada, do lado de fora da área de corrida.
+   A distância é medida a partir da BORDA da área de escape, não da linha
+   central - medindo do centro ela cai em cima do asfalto. */
+function drawGrandstand(ctx, track, p, side, len, depth, rng) {
+  const off = track.half + track.runoff + depth * 0.5 + 8;
   const nx = p.nx * side, ny = p.ny * side;
   ctx.save();
-  ctx.translate(p.x + nx * (depth * 0.5 + 8), p.y + ny * (depth * 0.5 + 8));
+  ctx.translate(p.x + nx * off, p.y + ny * off);
   ctx.rotate(Math.atan2(p.ty, p.tx));
+  /* terreno batido em volta, para a estrutura não flutuar no vazio */
+  ctx.fillStyle = 'rgba(120,126,110,0.30)';
+  roundRectPath(ctx, -len / 2 - 16, -depth / 2 - 12, len + 32, depth + 24, 10);
+  ctx.fill();
   ctx.fillStyle = 'rgba(0,0,0,0.30)';
   ctx.fillRect(-len / 2 + 3, -depth / 2 + 4, len, depth);
   ctx.fillStyle = '#3b424d';
@@ -323,11 +330,11 @@ function buildTrackLayer(track) {
   drawStartGrid(ctx, track, 20);
   drawStartLine(ctx, track);
 
-  const standSpots = [40, -70, 150, 260];
+  const standSpots = [200, -350, 750, 1300];
   for (const off of standSpots) {
-    const p = track.atArc((track.length + off * TRACK_SPACING) % track.length);
-    drawGrandstand(ctx, p, 1, 150, 40, rng);
-    if (off === 40 || off === -70) drawGrandstand(ctx, p, -1, 130, 34, rng);
+    const p = track.atArc((track.length + off) % track.length);
+    drawGrandstand(ctx, track, p, 1, 150, 40, rng);
+    if (off === 200 || off === -350) drawGrandstand(ctx, track, p, -1, 130, 34, rng);
   }
 
   return { canvas: cv, bounds: b, bg: outside };

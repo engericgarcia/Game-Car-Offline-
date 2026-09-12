@@ -5,6 +5,17 @@
    ============================================================ */
 'use strict';
 
+/* Níveis de dificuldade. `base` é o ritmo do adversário: multiplica a
+   velocidade de curva e a velocidade máxima que a IA se permite usar.
+   A força da equipe (tier, 0.96-1.00) ainda pesa por cima disso. */
+const DIFFICULTIES = [
+  { name: 'Muito fácil', base: 0.76, desc: 'para aprender os traçados' },
+  { name: 'Fácil', base: 0.85, desc: 'dá para ganhar sem volta perfeita' },
+  { name: 'Normal', base: 0.93, desc: 'exige volta limpa' },
+  { name: 'Difícil', base: 1.00, desc: 'ritmo de referência' },
+  { name: 'Extremo', base: 1.07, desc: 'o limite do carro' }
+];
+
 class AIDriver {
   constructor(car, skill, lane) {
     this.car = car;
@@ -107,7 +118,8 @@ function makeGrid(track, entries, difficulty) {
     if (!e.isPlayer) {
       /* a força da equipe pesa, mas o dia do piloto pesa também: sem esta
          variação as corridas terminam sempre na mesma ordem das equipes */
-      const base = (0.90 + difficulty * 0.055) * (e.team ? e.team.tier : 1);
+      const nivel = DIFFICULTIES[clamp(difficulty | 0, 0, DIFFICULTIES.length - 1)];
+      const base = nivel.base * (e.team ? e.team.tier : 1);
       const forma = (Math.random() - 0.5) * 0.055;
       ais.push(new AIDriver(car, base + forma, (Math.random() - 0.5) * 0.44));
     }

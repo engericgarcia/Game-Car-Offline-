@@ -66,6 +66,22 @@ multiplicador de pontos. Sair da pista zera o combo.
 Em **Ajustes** dá para ligar o *acelerador automático* (aí você só dirige e
 derrapa) e a *ajuda de contra-esterço*, que endireita o carro sozinho.
 
+### Dificuldade
+
+Cinco níveis, com diferença real de ritmo. Referência: melhor volta de um
+adversário em Monza.
+
+| Nível | Volta | Quando usar |
+|---|---|---|
+| Muito fácil | ~29 s | aprendendo os traçados |
+| **Fácil** (padrão) | ~27 s | dá para ganhar sem volta perfeita |
+| Normal | ~25 s | exige volta limpa |
+| Difícil | ~24 s | ritmo de referência |
+| Extremo | ~24 s | o limite do carro |
+
+A equipe escolhida também pesa: o carro da `Scuderia Rossa` é ~4% mais rápido
+que o da `Verde Lima`.
+
 ---
 
 ## O que tem no jogo

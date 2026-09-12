@@ -277,8 +277,8 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
       <input type="range" id="set-opponents" min="0" max="19" step="1"><b id="set-opponents-val">9</b></label>
     <label class="opt range"><span>Voltas<em>0 = o padrão de cada pista</em></span>
       <input type="range" id="set-laps" min="0" max="20" step="1"><b id="set-laps-val">padrão</b></label>
-    <label class="opt range"><span>Dificuldade<em>ritmo da IA</em></span>
-      <input type="range" id="set-difficulty" min="0" max="2" step="1"><b id="set-difficulty-val">Normal</b></label>
+    <label class="opt range"><span>Dificuldade<em id="set-difficulty-desc">ritmo dos adversários</em></span>
+      <input type="range" id="set-difficulty" min="0" max="4" step="1"><b id="set-difficulty-val">Normal</b></label>
     <button id="btn-reset-records" class="ghost danger">Apagar recordes</button>
     <button class="ghost" data-back>← Voltar</button>
   </div>
@@ -770,7 +770,7 @@ function buildTrack(def) {
     if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
     if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
   }
-  const pad = def.width / 2 + def.runoff + 20;
+  const pad = def.width / 2 + def.runoff + 76;   /* cabe a arquibancada */
 
   /* grade espacial para achar o ponto mais próximo sem varrer tudo */
   const cell = 48;
@@ -1056,6 +1056,17 @@ function resolveCarCollisions(cars, trackN) {
    ============================================================ */
 'use strict';
 
+/* Níveis de dificuldade. `base` é o ritmo do adversário: multiplica a
+   velocidade de curva e a velocidade máxima que a IA se permite usar.
+   A força da equipe (tier, 0.96-1.00) ainda pesa por cima disso. */
+const DIFFICULTIES = [
+  { name: 'Muito fácil', base: 0.76, desc: 'para aprender os traçados' },
+  { name: 'Fácil', base: 0.85, desc: 'dá para ganhar sem volta perfeita' },
+  { name: 'Normal', base: 0.93, desc: 'exige volta limpa' },
+  { name: 'Difícil', base: 1.00, desc: 'ritmo de referência' },
+  { name: 'Extremo', base: 1.07, desc: 'o limite do carro' }
+];
+
 class AIDriver {
   constructor(car, skill, lane) {
     this.car = car;
@@ -1158,7 +1169,8 @@ function makeGrid(track, entries, difficulty) {
     if (!e.isPlayer) {
       /* a força da equipe pesa, mas o dia do piloto pesa também: sem esta
          variação as corridas terminam sempre na mesma ordem das equipes */
-      const base = (0.90 + difficulty * 0.055) * (e.team ? e.team.tier : 1);
+      const nivel = DIFFICULTIES[clamp(difficulty | 0, 0, DIFFICULTIES.length - 1)];
+      const base = nivel.base * (e.team ? e.team.tier : 1);
       const forma = (Math.random() - 0.5) * 0.055;
       ais.push(new AIDriver(car, base + forma, (Math.random() - 0.5) * 0.44));
     }
@@ -1348,12 +1360,19 @@ function drawTree(ctx, x, y, r, rng) {
   ctx.beginPath(); ctx.arc(x - r * 0.28, y - r * 0.30, r * 0.48, 0, TAU); ctx.fill();
 }
 
-/* arquibancada de frente para a pista */
-function drawGrandstand(ctx, p, side, len, depth, rng) {
+/* Arquibancada, do lado de fora da área de corrida.
+   A distância é medida a partir da BORDA da área de escape, não da linha
+   central - medindo do centro ela cai em cima do asfalto. */
+function drawGrandstand(ctx, track, p, side, len, depth, rng) {
+  const off = track.half + track.runoff + depth * 0.5 + 8;
   const nx = p.nx * side, ny = p.ny * side;
   ctx.save();
-  ctx.translate(p.x + nx * (depth * 0.5 + 8), p.y + ny * (depth * 0.5 + 8));
+  ctx.translate(p.x + nx * off, p.y + ny * off);
   ctx.rotate(Math.atan2(p.ty, p.tx));
+  /* terreno batido em volta, para a estrutura não flutuar no vazio */
+  ctx.fillStyle = 'rgba(120,126,110,0.30)';
+  roundRectPath(ctx, -len / 2 - 16, -depth / 2 - 12, len + 32, depth + 24, 10);
+  ctx.fill();
   ctx.fillStyle = 'rgba(0,0,0,0.30)';
   ctx.fillRect(-len / 2 + 3, -depth / 2 + 4, len, depth);
   ctx.fillStyle = '#3b424d';
@@ -1587,11 +1606,11 @@ function buildTrackLayer(track) {
   drawStartGrid(ctx, track, 20);
   drawStartLine(ctx, track);
 
-  const standSpots = [40, -70, 150, 260];
+  const standSpots = [200, -350, 750, 1300];
   for (const off of standSpots) {
-    const p = track.atArc((track.length + off * TRACK_SPACING) % track.length);
-    drawGrandstand(ctx, p, 1, 150, 40, rng);
-    if (off === 40 || off === -70) drawGrandstand(ctx, p, -1, 130, 34, rng);
+    const p = track.atArc((track.length + off) % track.length);
+    drawGrandstand(ctx, track, p, 1, 150, 40, rng);
+    if (off === 200 || off === -350) drawGrandstand(ctx, track, p, -1, 130, 34, rng);
   }
 
   return { canvas: cv, bounds: b, bg: outside };
@@ -2715,6 +2734,12 @@ function drawCarThumb(cv, team) {
   c.restore();
 }
 
+function setDifficultyLabel(i) {
+  const d = DIFFICULTIES[clamp(i, 0, DIFFICULTIES.length - 1)];
+  el('set-difficulty-val').textContent = d.name;
+  el('set-difficulty-desc').textContent = d.desc;
+}
+
 function buildSettings() {
   const s = Game.settings;
   el('set-autogas').checked = s.autoGas;
@@ -2723,7 +2748,7 @@ function buildSettings() {
   el('set-opponents').value = s.opponents;
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
-  el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][s.difficulty];
+  setDifficultyLabel(s.difficulty);
   el('set-laps').value = s.laps;
   el('set-laps-val').textContent = s.laps ? s.laps : 'padrão';
 }
@@ -2783,7 +2808,7 @@ function wireUI() {
   };
   el('set-difficulty').oninput = e => {
     Game.settings.difficulty = +e.target.value;
-    el('set-difficulty-val').textContent = ['Fácil', 'Normal', 'Difícil'][+e.target.value]; saveSettings();
+    setDifficultyLabel(+e.target.value); saveSettings();
   };
   el('set-laps').oninput = e => {
     Game.settings.laps = +e.target.value;
