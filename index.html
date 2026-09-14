@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=44">
 </head>
 <body>
 
@@ -36,11 +36,14 @@
   </div>
 
   <div class="speedo">
-    <div class="speedo-num"><b id="hud-speed">0</b><span>km/h</span></div>
+    <div class="rev"><i id="hud-rev"></i></div>
+    <div class="speedo-num"><b id="hud-speed">0</b><span>km/h</span>
+      <span class="gear"><em>MARCHA</em><b id="hud-gear">1</b></span></div>
     <div class="speedo-bar"><i id="hud-speed-bar"></i></div>
     <div class="tyre-bar" id="hud-tyre-wrap"><i id="hud-tyre"></i><span>PNEU</span></div>
   </div>
 
+  <div id="pit-msg" class="hidden"></div>
   <div id="start-lights" class="hidden">
     <i></i><i></i><i></i><i></i><i></i>
   </div>
@@ -50,8 +53,14 @@
 <!-- ============ CONTROLES ============ -->
 <div id="touch" class="hidden">
   <div class="pad pad-left">
-    <button class="tbtn steer" data-btn="left" aria-label="Esquerda">◀</button>
-    <button class="tbtn steer" data-btn="right" aria-label="Direita">▶</button>
+    <div class="gears hidden" id="gear-btns">
+      <button class="tbtn gearbtn" data-btn="down" aria-label="Reduzir">▼</button>
+      <button class="tbtn gearbtn" data-btn="up" aria-label="Aumentar marcha">▲</button>
+    </div>
+    <div class="steers">
+      <button class="tbtn steer" data-btn="left" aria-label="Esquerda">◀</button>
+      <button class="tbtn steer" data-btn="right" aria-label="Direita">▶</button>
+    </div>
   </div>
   <div class="pad pad-right">
     <button class="tbtn drift" data-btn="drift" aria-label="Freio de mão">
@@ -128,6 +137,8 @@
       <input type="checkbox" id="set-autogas"></label>
     <label class="opt"><span>Ajuda de contra-esterço<em>o carro se endireita sozinho</em></span>
       <input type="checkbox" id="set-assist"></label>
+    <label class="opt range"><span>Câmbio<em>6 marchas</em></span>
+      <input type="range" id="set-cambio" min="0" max="1" step="1"><b id="set-cambio-val">Automático</b></label>
     <label class="opt"><span>Pedal analógico<em>quanto mais embaixo você pisa, mais acelera</em></span>
       <input type="checkbox" id="set-analog"></label>
     <label class="opt"><span>Som<em>motor e derrapagem</em></span>
@@ -201,14 +212,14 @@
   </div>
 </section>
 
-<script src="js/utils.js?v=30"></script>
-<script src="js/teams.js?v=30"></script>
-<script src="js/tracks.js?v=30"></script>
-<script src="js/car.js?v=30"></script>
-<script src="js/ai.js?v=30"></script>
-<script src="js/audio.js?v=30"></script>
-<script src="js/render.js?v=30"></script>
-<script src="js/season.js?v=30"></script>
-<script src="js/game.js?v=30"></script>
+<script src="js/utils.js?v=44"></script>
+<script src="js/teams.js?v=44"></script>
+<script src="js/tracks.js?v=44"></script>
+<script src="js/car.js?v=44"></script>
+<script src="js/ai.js?v=44"></script>
+<script src="js/audio.js?v=44"></script>
+<script src="js/render.js?v=44"></script>
+<script src="js/season.js?v=44"></script>
+<script src="js/game.js?v=44"></script>
 </body>
 </html>

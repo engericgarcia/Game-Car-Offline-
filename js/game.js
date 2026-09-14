@@ -5,7 +5,7 @@
 
 /* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
    version.json do servidor para descobrir se o aparelho está atrasado. */
-const APP_VERSION = 30;
+const APP_VERSION = 44;
 
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
@@ -19,8 +19,10 @@ const Game = {
   totalLaps: 3, finishOrder: [],
   settings: {
     autoGas: false, assist: true, sound: true, analog: true,
-    opponents: 9, difficulty: 1, laps: 0, clima: 0   /* 0 seco, 1 chuva, 2 sorteio */
+    opponents: 9, difficulty: 1, laps: 0, clima: 0,  /* 0 seco, 1 chuva, 2 sorteio */
+    cambio: 0                                        /* 0 automático, 1 manual */
   },
+  lastInput: null,
   wet: 0,
   records: {},
   teamPickFor: 'quick',      /* de onde a tela de equipes foi aberta */
@@ -29,6 +31,9 @@ const Game = {
   toast: { text: '', life: 0 },
   driftPop: { text: '', life: 0 }
 };
+
+/* a IA consulta para decidir se vale parar nos boxes */
+function voltasDaCorrida() { return Game.totalLaps || 3; }
 
 /* ---------------- armazenamento ---------------- */
 function loadStore() {
@@ -88,7 +93,7 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 /* ---------------- controles ---------------- */
 const keys = {};
 /* gas e brake são 0..1 (pedal analógico); os outros, 0 ou 1 */
-const touch = { left: 0, right: 0, gas: 0, brake: 0, drift: 0 };
+const touch = { left: 0, right: 0, gas: 0, brake: 0, drift: 0, up: 0, down: 0 };
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -176,6 +181,9 @@ function bindTouch() {
   pad.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+/* troca de marcha conta no toque, não enquanto segura */
+let prevUp = false, prevDown = false;
+
 function playerInput() {
   const s = Game.settings;
   let steer = 0;
@@ -186,7 +194,18 @@ function playerInput() {
   const hand = (keys.Space || keys.ShiftLeft || touch.drift) ? true : false;
   if (s.autoGas && !brake) gas = 1;
   if (Game.state !== 'racing') { gas = Game.state === 'countdown' ? gas * 0 : 0; brake = 0; }
-  return { steer: steer, throttle: gas, brake: brake, handbrake: hand };
+
+  const manual = s.cambio === 1;
+  const upAgora = !!(keys.KeyE || keys.PageUp || touch.up);
+  const downAgora = !!(keys.KeyQ || keys.PageDown || touch.down);
+  const subiu = manual && upAgora && !prevUp;
+  const desceu = manual && downAgora && !prevDown;
+  prevUp = upAgora; prevDown = downAgora;
+
+  return {
+    steer: steer, throttle: gas, brake: brake, handbrake: hand,
+    autoGear: !manual, shiftUp: subiu, shiftDown: desceu
+  };
 }
 
 /* ---------------- montagem da corrida ---------------- */
@@ -311,6 +330,7 @@ function simulate(dt, now) {
   }
 
   const inp = playerInput();
+  G.lastInput = inp;
 
   for (let i = 0; i < G.ais.length; i++) {
     const ai = G.ais[i];
@@ -584,6 +604,7 @@ function updateHudStatic() {
   el('hud-best-wrap').classList.toggle('hidden', Game.mode === 'drift');
   el('hud-drift-wrap').classList.toggle('hidden', false);
   el('btn-gas').classList.toggle('hidden', !!Game.settings.autoGas);
+  el('gear-btns').classList.toggle('hidden', Game.settings.cambio !== 1);
 }
 
 /* As cinco luzes acendem uma a uma; quando TODAS apagam, é a largada -
@@ -625,6 +646,24 @@ function hudTick(dt) {
   const r = rec(G.trackDef.id);
   el('hud-speed').textContent = Math.round(p.speed * 0.62);
   el('hud-speed-bar').style.width = Math.round(clamp(p.speed / p.spec.top, 0, 1) * 100) + '%';
+  el('hud-rev').style.width = Math.round(clamp(p.rpm / 1.05, 0, 1) * 100) + '%';
+  el('hud-rev').parentElement.classList.toggle('corte', p.rpm > 0.93);
+  el('hud-gear').textContent = p.gear + 1;
+  /* boxes: aviso para entrar, e a contagem enquanto troca o pneu */
+  const pm = el('pit-msg');
+  if (p.pitPhase === 1) {
+    pm.classList.remove('hidden');
+    pm.innerHTML = 'TROCANDO PNEU<b>' + Math.max(0, p.pitTimer).toFixed(1) + 's</b>';
+  } else if (p.inPit) {
+    pm.classList.remove('hidden');
+    pm.innerHTML = 'CORREDOR DOS BOXES · limitador ligado';
+  } else if (p.tyre < 0.68 && G.totalLaps >= 5 && p.lap <= G.totalLaps - 2) {
+    pm.classList.remove('hidden');
+    pm.innerHTML = 'PNEU GASTO · entre nos boxes';
+  } else {
+    pm.classList.add('hidden');
+  }
+
   const pneu = (p.tyre - 0.35) / 0.65;
   const tb = el('hud-tyre');
   tb.style.width = Math.round(clamp(pneu, 0, 1) * 100) + '%';
@@ -993,6 +1032,8 @@ function buildSettings() {
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
   setDifficultyLabel(s.difficulty);
+  el('set-cambio').value = s.cambio;
+  el('set-cambio-val').textContent = s.cambio ? 'Manual' : 'Automático';
   el('set-clima').value = s.clima;
   el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][s.clima];
   el('set-laps').value = s.laps;
@@ -1060,6 +1101,11 @@ function wireUI() {
     Game.settings.difficulty = +e.target.value;
     setDifficultyLabel(+e.target.value); saveSettings();
   };
+  el('set-cambio').oninput = e => {
+    Game.settings.cambio = +e.target.value;
+    el('set-cambio-val').textContent = +e.target.value ? 'Manual' : 'Automático';
+    saveSettings(); updateHudStatic();
+  };
   el('set-clima').oninput = e => {
     Game.settings.clima = +e.target.value;
     el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][+e.target.value]; saveSettings();
@@ -1091,8 +1137,10 @@ setInterval(() => {
   const p = Game.player;
   const playing = (Game.state === 'racing' || Game.state === 'countdown');
   if (!p) { Sound.updateEngine(0, 0, 0, false); return; }
-  const inp = playerInput();
-  const rpm = clamp(p.speed / p.spec.top, 0, 1) * 0.75 + inp.throttle * 0.25;
+  const inp = Game.lastInput || { throttle: 0 };
+  /* a rotação vem do câmbio, então o tom CAI a cada troca - é isso que
+     faz o motor soar como motor e não como uma sirene subindo */
+  const rpm = clamp(p.rpm * 0.82 + inp.throttle * 0.12, 0, 1.1);
   /* cada motor tem seu tom: dá para reconhecer a equipe de ouvido */
   const tom = p.entry && p.entry.team ? 0.82 + (p.entry.team.engine - 550) / 210 : 1;
   Sound.updateEngine(rpm, inp.throttle, Math.abs(p.slip) * (p.speed > 60 ? 1 : 0), playing, tom);

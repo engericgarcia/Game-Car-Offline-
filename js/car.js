@@ -8,6 +8,27 @@
 
 /* proporções de um monoposto visto de cima: comprido e estreito,
    com as rodas para fora da carroceria */
+/* ---------- câmbio ----------
+   GEAR_TOP é a fração da velocidade máxima em que cada marcha bate o
+   corte. A curva de torque faz o motor render mais perto do corte: é o
+   que dá sentido a trocar na hora certa. */
+const GEAR_TOP = [0.20, 0.35, 0.52, 0.69, 0.85, 1.0];
+const SHIFT_TIME = 0.10;
+/* Depois de subir a marcha a rotação cai para ~0.55 (a 1ª para a 2ª é o
+   salto maior). Se o limite para reduzir ficar perto disso, ele sobe e
+   desce sem parar. Daí a folga larga e o bloqueio após cada troca. */
+const SHIFT_DOWN_RPM = 0.42;
+const SHIFT_LOCK = 0.35;
+
+/* boxes */
+const PIT_SPEED = 146;     /* limitador, ~90 km/h */
+const PIT_SERVICE = 2.2;   /* segundos parado trocando pneu */
+
+function torqueAt(x) {
+  if (x < 0.85) return clamp(0.62 + 0.62 * x, 0.62, 1.15);
+  return clamp(1.15 - (x - 0.85) * 1.6, 0.58, 1.15);
+}
+
 const CAR_LEN = 34, CAR_WID = 20;
 const WHEEL_FX = 8.5, WHEEL_FY = 8.6;    /* eixo dianteiro */
 const WHEEL_RX = -9.5, WHEEL_RY = 9.2;   /* eixo traseiro  */
@@ -29,10 +50,29 @@ class Car {
     this.draft = 0;          /* 0..1, quanto vácuo está pegando agora */
     this.lapClean = true;    /* a volta atual vale como tempo? */
     this.tyre = 1;           /* 1 = pneu novo, 0.35 = acabado */
+    this.tyreLoss = 0;
     this.wet = 0;            /* 0 = pista seca, 1 = encharcada */
+    this.gear = 0;           /* 0..5 = 1ª a 6ª */
+    this.rpm = 0;            /* 0..1.15, sendo 1 o corte */
+    this.shiftT = 0;         /* tempo restante de troca (sem tração) */
+    this.shiftLock = 0;      /* trava contra troca em sequência */
+    this.shiftFlash = 0;
+    this.inPit = false;      /* dentro do corredor dos boxes */
+    this.pitPhase = 0;       /* 0 fora, 1 parado sendo atendido, 2 já atendido */
+    this.pitTimer = 0;
+    this.pitStops = 0;
+    this.pitWanted = false;  /* a IA usa para decidir entrar */
     this.outTimer = 0;
     this.wheelTrail = [null, null];
     this.assist = 0.55;
+  }
+
+  shiftTo(g) {
+    if (g === this.gear) return;
+    this.gear = g;
+    this.shiftT = SHIFT_TIME;
+    this.shiftLock = SHIFT_LOCK;
+    this.shiftFlash = 0.18;
   }
 
   placeAtArc(s, lateral) {
@@ -41,6 +81,7 @@ class Car {
     this.y = p.y + p.ny * lateral;
     this.angle = p.ang;
     this.vx = 0; this.vy = 0;
+    this.gear = 0; this.rpm = 0; this.shiftT = 0; this.shiftLock = 0;
     this.idx = this.prevIdx = this.track.nearestIndex(this.x, this.y, null);
   }
 
@@ -60,38 +101,89 @@ class Car {
 
     /* limites de pista: passar da zebra por mais de um instante anula a
        volta. Sem isso dá para cortar curva e bater recorde sem merecer. */
-    if (surf.dist > track.half + 14) {
+    if (surf.dist > track.half + 14 && !this.inPit) {
       this.outTimer += dt;
       if (this.outTimer > 0.15) this.lapClean = false;
     } else {
       this.outTimer = 0;
     }
 
-    const off = this.offTrack;
+    /* ---- boxes ----
+       O corredor vale como pista: nada de penalidade de grama nem volta
+       anulada, mas com limitador de velocidade. */
+    const P = track.pit;
+    let pitInfo = null;
+    if (P) {
+      const dIdx = Math.min(this.idx, track.n - this.idx);
+      if (dIdx * track.spacing < P.len * 0.75) pitInfo = track.pitAt(this.x, this.y);
+    }
+    this.inPit = !!(pitInfo && pitInfo.dist < 30 && surf.dist > track.half * 0.75);
+    if (this.inPit) {
+      this.lapClean = this.lapClean;      /* o box não anula a volta */
+      this.outTimer = 0;
+      if (fwd > PIT_SPEED) fwd = PIT_SPEED;
+      /* parada na vaga */
+      const naVaga = Math.abs(pitInfo.i - P.boxIdx) <= 3;
+      if (this.pitPhase === 0 && naVaga && speed0 < 38) {
+        this.pitPhase = 1; this.pitTimer = PIT_SERVICE;
+      }
+      if (this.pitPhase === 1) {
+        this.pitTimer -= dt;
+        fwd = 0; lat = 0;
+        this.vx = 0; this.vy = 0;
+        if (this.pitTimer <= 0) {
+          this.tyre = 1; this.pitPhase = 2; this.pitStops++; this.pitWanted = false;
+        }
+      }
+    } else if (this.pitPhase === 2) {
+      this.pitPhase = 0;
+    }
+
+    const off = this.offTrack && !this.inPit;
     const power = (off ? 0.48 : 1) * (1 - this.wet * 0.10);
     let drag = off ? 2.9 : 1.06 + (fwd > 0 ? fwd / sp.top * 0.5 : 0);
     /* no vácuo o carro da frente abre o ar: menos arrasto, mais ponta */
     if (!off && this.draft > 0) drag *= 1 - 0.17 * this.draft;
 
+    /* Pneu: gasta com o tempo, e MUITO mais atravessado. É o custo do
+       drift - render pontos custa borracha, e borracha gasta custa volta. */
+    const gasto = (0.0038 + Math.abs(this.slip) * 0.013 +
+      (speed0 / sp.top) * 0.0020) * dt;
+    this.tyre = Math.max(0.35, this.tyre - gasto);
+    /* a perda cresce mais rápido no fim da vida do pneu: é isso que faz a
+       parada nos boxes virar decisão, e não enfeite */
+    const velho = Math.pow(1 - this.tyre, 1.4) * 1.70;
+    this.tyreLoss = velho;      /* a IA usa para levantar o pé */
+
+    /* ---- câmbio ---- */
+    const topG = sp.top * GEAR_TOP[this.gear];
+    this.rpm = clamp(Math.max(fwd, 0) / topG, 0, 1.15);
+    if (this.shiftT > 0) this.shiftT -= dt;
+    if (this.shiftLock > 0) this.shiftLock -= dt;
+    if (this.shiftFlash > 0) this.shiftFlash -= dt;
+
+    if (inp.shiftUp && this.gear < 5 && this.shiftT <= 0) this.shiftTo(this.gear + 1);
+    else if (inp.shiftDown && this.gear > 0 && this.shiftT <= 0) this.shiftTo(this.gear - 1);
+    else if (inp.autoGear !== false && this.shiftT <= 0 && this.shiftLock <= 0) {
+      if (this.rpm > 0.97 && this.gear < 5) this.shiftTo(this.gear + 1);
+      else if (this.gear > 0 && this.rpm < SHIFT_DOWN_RPM &&
+        fwd / (sp.top * GEAR_TOP[this.gear - 1]) < 0.99) this.shiftTo(this.gear - 1);
+    }
+
     /* motor e freio */
-    if (inp.throttle > 0) fwd += sp.engine * power * inp.throttle * dt;
+    const torque = this.shiftT > 0 ? 0 : torqueAt(this.rpm);
+    if (inp.throttle > 0) fwd += sp.engine * torque * power * inp.throttle * dt;
     if (inp.brake > 0) {
-      if (fwd > 2) fwd -= sp.brake * (1 - this.wet * 0.24) * inp.brake * dt;
+      if (fwd > 2) fwd -= sp.brake * (1 - this.wet * 0.24) *
+        clamp(1 - velho * 0.11, 0.84, 1) * inp.brake * dt;
       else fwd = Math.max(fwd - 260 * inp.brake * dt, -130);
     }
     fwd -= fwd * drag * dt;
     if (inp.handbrake && fwd > 0) fwd -= fwd * 0.9 * dt;
 
-    /* Pneu: gasta com o tempo, e MUITO mais atravessado. É o custo do
-       drift - render pontos custa borracha, e borracha gasta custa volta. */
-    const gasto = (0.0022 + Math.abs(this.slip) * 0.011 +
-      (speed0 / sp.top) * 0.0014) * dt;
-    this.tyre = Math.max(0.35, this.tyre - gasto);
-    const velho = 1 - this.tyre;
-
     /* aderência lateral: quanto mais perto de 1, mais escorrega */
     let g = inp.handbrake ? sp.driftGrip : sp.grip;
-    g = Math.min(0.988, g + velho * 0.045 + this.wet * 0.034);
+    g = Math.min(0.988, g + velho * 0.042 + this.wet * 0.034);
     if (off) g = Math.min(0.972, g + 0.075);
     if (this.onKerb) g = Math.min(0.975, g + 0.03);
     /* acelerar forte durante a derrapagem mantém o carro atravessado */
@@ -109,7 +201,7 @@ class Car {
     const hiDamp = 1 - 0.40 * Math.min(1, speed / sp.top);
     const dir = fwd >= -1 ? 1 : -1;
     this.steerAngle += (inp.steer - this.steerAngle) * Math.min(1, dt * 10);
-    this.angle += this.steerAngle * sp.turn * (0.88 + 0.12 * this.tyre) *
+    this.angle += this.steerAngle * sp.turn * clamp(1 - velho * 0.13, 0.80, 1) *
       resp * hiDamp * dir * dt;
 
     /* ângulo de derrapagem */
@@ -128,7 +220,7 @@ class Car {
 
     /* muros e limites do circuito */
     const limit = track.half + track.runoff;
-    if (surf.dist > limit) {
+    if (surf.dist > limit && !this.inPit) {
       const s2 = track.surfaceAt(this.x, this.y, this.idx);
       if (s2.dist > limit) {
         const over = s2.dist - limit;

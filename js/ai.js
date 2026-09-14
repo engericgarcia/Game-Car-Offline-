@@ -28,6 +28,7 @@ class AIDriver {
     /* Erros. Sem eles o pelotão se ordena por ritmo na primeira volta e
        fica assim até o fim: nenhuma corrida tem história. */
     this.erroEm = 20 + Math.random() * 90;
+    this.jaParou = false;
     this.erro = null;
     this.erroT = 0;
   }
@@ -64,6 +65,37 @@ class AIDriver {
     }
 
     this.sorteiaErro(dt, speed);
+
+    /* ---- boxes ----
+       Só vale a pena em corrida longa: numa de 3 voltas o pneu não chega
+       a acabar e a parada custaria mais do que rende. */
+    const P = track.pit;
+    const kPit = P ? track.pitIndexFor(car.idx) : -1;
+
+    /* entra cedo o bastante para a borracha nova render: parar na última
+       volta não adianta nada */
+    if (P && !this.jaParou && !car.pitWanted && car.tyre < 0.70 &&
+      voltasDaCorrida() >= 5 && car.lap >= 1 && car.lap <= voltasDaCorrida() - 2) {
+      car.pitWanted = true;
+    }
+    if (car.pitPhase === 2) { this.jaParou = true; car.pitWanted = false; }
+
+    /* só entra se ainda estiver ANTES da vaga; senão espera a volta seguinte */
+    if (P && car.pitWanted && kPit >= 0 &&
+      (car.inPit || kPit < P.boxIdx - 6) && kPit < P.pts.length - 6) {
+      const alvo = P.pts[Math.min(kPit + 14, P.pts.length - 1)];
+      const dif = wrapAngle(Math.atan2(alvo.y - car.y, alvo.x - car.x) - car.angle);
+      /* freia para a vaga quando ela está perto */
+      const paraVaga = (P.boxIdx - kPit) * track.spacing;
+      const quaseLa = car.inPit && paraVaga < 40;
+      const rapidoDemais = speed > (quaseLa ? 25 : 125);
+      return {
+        steer: clamp(dif * 2.3, -1, 1),
+        throttle: rapidoDemais ? 0 : (quaseLa ? 0 : 0.45),
+        brake: rapidoDemais ? 1 : 0,
+        handbrake: false
+      };
+    }
 
     /* ponto de mira à frente, proporcional à velocidade */
     const aheadUnits = (off ? 30 : 46) + speed * 0.38;
@@ -103,7 +135,9 @@ class AIDriver {
        raio = v / w, com w máximo = turn * (1 - 0.4 * v/top).
        Resolvendo para v dá a velocidade máxima de passagem na curva. */
     const yawLimit = car.spec.turn / (worst + 0.4 * car.spec.turn / car.spec.top);
-    let target = 0.90 * this.skill * yawLimit * (1 - car.wet * 0.13);
+    /* com pneu gasto a IA anda mais devagar, senão sai da pista */
+    let target = 0.90 * this.skill * yawLimit *
+      (1 - car.wet * 0.13) * (1 - (car.tyreLoss || 0) * 0.11);
     target = Math.min(target, car.spec.top * this.skill);
     if (off) target = Math.min(target, 190);
     /* muito atravessado em relação ao alvo: reduz até se alinhar */

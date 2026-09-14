@@ -65,9 +65,22 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none
 /* velocímetro com barra */
 .speedo{position:fixed;left:calc(16px + var(--sal));bottom:calc(126px + var(--sab));
   text-shadow:0 2px 10px rgba(0,0,0,.75);pointer-events:none}
-.speedo-num{display:flex;align-items:baseline;gap:4px}
-.speedo-num b{font-size:44px;font-weight:900;font-variant-numeric:tabular-nums;line-height:.88}
-.speedo-num span{font-size:11px;color:var(--dim);letter-spacing:1px}
+/* conta-giros com luz de troca */
+.rev{width:132px;height:6px;border-radius:4px;background:rgba(255,255,255,.14);
+  overflow:hidden;margin-bottom:6px}
+.rev i{display:block;height:100%;width:0;border-radius:4px;background:#6ec8ff;
+  transition:width .05s linear,background .08s linear}
+.rev.corte i{background:#e5453a;box-shadow:0 0 12px rgba(229,69,58,.9)}
+.speedo-num{display:flex;align-items:flex-end;gap:5px}
+.speedo-num>b{font-size:44px;font-weight:900;font-variant-numeric:tabular-nums;line-height:.86}
+.speedo-num>span{font-size:11px;color:var(--dim);letter-spacing:1px;padding-bottom:5px}
+/* seletor de filho direto: sem isso a regra do velocímetro, que vem
+   depois, sobrescrevia o tamanho do número da marcha */
+.gear{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  margin-left:12px;padding-left:12px;border-left:1px solid rgba(255,255,255,.20)}
+.gear>em{font-style:normal;font-size:7px;letter-spacing:1.3px;color:var(--dim);line-height:1.5}
+.gear>b{font-size:30px;font-weight:900;line-height:.9;color:var(--acc);
+  font-variant-numeric:tabular-nums}
 .speedo-bar{width:104px;height:4px;border-radius:3px;margin-top:5px;overflow:hidden;
   background:rgba(255,255,255,.16)}
 .speedo-bar i{display:block;height:100%;width:0;border-radius:3px;
@@ -78,7 +91,16 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none
   transition:width .3s linear,background .3s linear}
 .tyre-bar span{position:absolute;left:0;top:6px;font-size:7px;letter-spacing:1.3px;color:var(--dim)}
 body.landscape .speedo{bottom:calc(18px + var(--sab));left:calc(206px + var(--sal))}
-body.landscape .speedo-num b{font-size:34px}
+body.landscape .speedo-num>b{font-size:34px}
+body.landscape .gear>b{font-size:24px}
+
+/* aviso dos boxes */
+#pit-msg{position:fixed;left:50%;top:calc(150px + var(--sat));transform:translateX(-50%);
+  background:rgba(10,12,16,.86);border:1px solid var(--acc);border-radius:14px;
+  padding:9px 18px;font-weight:800;font-size:14px;color:var(--acc);white-space:nowrap;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);text-align:center}
+#pit-msg b{display:block;font-size:22px;color:#fff;font-variant-numeric:tabular-nums}
+body.landscape #pit-msg{top:calc(96px + var(--sat))}
 
 /* luzes de largada, como as cinco da F1 */
 #start-lights{position:fixed;left:50%;top:26%;transform:translateX(-50%);
@@ -109,7 +131,12 @@ body.landscape #toast{top:calc(150px + var(--sat))}
 /* ---------------- controles de toque ---------------- */
 #touch{position:fixed;inset:0;pointer-events:none}
 .pad{position:fixed;bottom:calc(14px + var(--sab));pointer-events:auto}
-.pad-left{left:calc(14px + var(--sal));display:flex;gap:10px;align-items:flex-end}
+.pad-left{left:calc(14px + var(--sal));display:flex;flex-direction:column;gap:10px;
+  align-items:flex-start}
+.pad-left .steers{display:flex;gap:10px}
+.pad-left .gears{display:flex;gap:10px}
+.tbtn.gearbtn{width:56px;height:44px;border-radius:14px;font-size:17px;
+  background:rgba(28,33,42,.62);border-color:rgba(255,209,102,.35)}
 .pad-right{right:calc(14px + var(--sar));display:grid;gap:10px;
   grid-template-areas:"drf drf" "brk gas";justify-items:stretch;align-items:end}
 .pad-right .drift{grid-area:drf}
@@ -309,11 +336,14 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
   </div>
 
   <div class="speedo">
-    <div class="speedo-num"><b id="hud-speed">0</b><span>km/h</span></div>
+    <div class="rev"><i id="hud-rev"></i></div>
+    <div class="speedo-num"><b id="hud-speed">0</b><span>km/h</span>
+      <span class="gear"><em>MARCHA</em><b id="hud-gear">1</b></span></div>
     <div class="speedo-bar"><i id="hud-speed-bar"></i></div>
     <div class="tyre-bar" id="hud-tyre-wrap"><i id="hud-tyre"></i><span>PNEU</span></div>
   </div>
 
+  <div id="pit-msg" class="hidden"></div>
   <div id="start-lights" class="hidden">
     <i></i><i></i><i></i><i></i><i></i>
   </div>
@@ -323,8 +353,14 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
 <!-- ============ CONTROLES ============ -->
 <div id="touch" class="hidden">
   <div class="pad pad-left">
-    <button class="tbtn steer" data-btn="left" aria-label="Esquerda">◀</button>
-    <button class="tbtn steer" data-btn="right" aria-label="Direita">▶</button>
+    <div class="gears hidden" id="gear-btns">
+      <button class="tbtn gearbtn" data-btn="down" aria-label="Reduzir">▼</button>
+      <button class="tbtn gearbtn" data-btn="up" aria-label="Aumentar marcha">▲</button>
+    </div>
+    <div class="steers">
+      <button class="tbtn steer" data-btn="left" aria-label="Esquerda">◀</button>
+      <button class="tbtn steer" data-btn="right" aria-label="Direita">▶</button>
+    </div>
   </div>
   <div class="pad pad-right">
     <button class="tbtn drift" data-btn="drift" aria-label="Freio de mão">
@@ -401,6 +437,8 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
       <input type="checkbox" id="set-autogas"></label>
     <label class="opt"><span>Ajuda de contra-esterço<em>o carro se endireita sozinho</em></span>
       <input type="checkbox" id="set-assist"></label>
+    <label class="opt range"><span>Câmbio<em>6 marchas</em></span>
+      <input type="range" id="set-cambio" min="0" max="1" step="1"><b id="set-cambio-val">Automático</b></label>
     <label class="opt"><span>Pedal analógico<em>quanto mais embaixo você pisa, mais acelera</em></span>
       <input type="checkbox" id="set-analog"></label>
     <label class="opt"><span>Som<em>motor e derrapagem</em></span>
@@ -742,7 +780,7 @@ const TRACK_DEFS = [
     country: '🇮🇹',
     width: 112, runoff: 100, minRadius: 70,
     grass: '#3f7d3a', asphalt: '#5b5f66',
-    laps: 3, difficulty: 1,
+    laps: 5, difficulty: 1,
     /* Reta principal → Variante del Rettifilo → Curva Grande → Variante della
        Roggia → Lesmo 1 e 2 → reta do Serraglio → Variante Ascari → reta
        oposta → Parabolica. Sentido horário. */
@@ -771,7 +809,7 @@ const TRACK_DEFS = [
     country: '🇲🇨',
     width: 78, runoff: 12, minRadius: 52,
     grass: '#4a5568', asphalt: '#63676e',
-    laps: 4, difficulty: 3, urban: true,
+    laps: 6, difficulty: 3, urban: true,
     /* Sainte Dévote → Beau Rivage → Massenet → Casino → Mirabeau → Grand
        Hotel → Portier → túnel → Nouvelle Chicane → Tabac → piscina →
        Rascasse → Anthony Noghès. */
@@ -804,7 +842,7 @@ const TRACK_DEFS = [
     country: '🇧🇷',
     width: 100, runoff: 78, minRadius: 62,
     grass: '#437f36', asphalt: '#585c62',
-    laps: 4, difficulty: 2,
+    laps: 6, difficulty: 2,
     /* Subida dos boxes → S do Senna → Curva do Sol → Reta Oposta → Descida
        do Lago → Ferradura → Laranjinha → Pinheirinho → Bico de Pato →
        Mergulho → Junção. Sentido anti-horário. */
@@ -833,7 +871,7 @@ const TRACK_DEFS = [
     country: '🇧🇪',
     width: 106, runoff: 92, minRadius: 68,
     grass: '#38703a', asphalt: '#54585e',
-    laps: 3, difficulty: 2,
+    laps: 4, difficulty: 2,
     /* La Source → Eau Rouge/Raidillon → reta Kemmel → Les Combes → Malmedy →
        Rivage → Pouhon → Fagnes → Paul Frère → Stavelot → Blanchimont →
        Bus Stop. */
@@ -864,7 +902,7 @@ const TRACK_DEFS = [
     country: '🇬🇧',
     width: 104, runoff: 90, minRadius: 72,
     grass: '#3d7a3c', asphalt: '#585d64',
-    laps: 3, difficulty: 2,
+    laps: 6, difficulty: 2,
     /* reta dos boxes → Copse → Maggotts/Becketts → reta Hangar → Stowe →
        Vale/Club → Abbey → setor lento da arena → Wellington. */
     points: [
@@ -891,7 +929,7 @@ const TRACK_DEFS = [
     country: '🇳🇱',
     width: 80, runoff: 50, minRadius: 54,
     grass: '#8a7f5e', asphalt: '#5c6068',
-    laps: 4, difficulty: 3,
+    laps: 7, difficulty: 3,
     /* Tarzan → Gerlach → Hugenholtz → Scheivlak → Masters → Hans Ernst →
        Kumho → Arie Luyendyk, de volta para a reta. */
     points: [
@@ -990,6 +1028,7 @@ function buildTrack(def) {
 
   const track = {
     def: def, pts: pts, n: n, spacing: TRACK_SPACING,
+    pit: null,
     width: def.width, half: def.width / 2, runoff: def.runoff,
     length: n * TRACK_SPACING,
     bounds: { x: minX - pad, y: minY - pad, w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 },
@@ -1039,6 +1078,29 @@ function buildTrack(def) {
       };
     },
 
+    /* converte um índice da linha central no índice equivalente do
+       corredor dos boxes; -1 quando o carro não está no trecho deles */
+    pitIndexFor: function (idx) {
+      const P = track.pit;
+      if (!P) return -1;
+      const k = (idx - P.base + track.n) % track.n;
+      return k < P.pts.length ? k : -1;
+    },
+
+    /* distância até o eixo dos boxes, e onde nele. Só faz sentido perto
+       da linha de chegada, então quem chama já filtra por isso. */
+    pitAt: function (x, y) {
+      const P = track.pit;
+      if (!P) return null;
+      let melhor = -1, d2 = Infinity;
+      for (let i = 0; i < P.pts.length; i++) {
+        const p = P.pts[i];
+        const d = dist2(x, y, p.x, p.y);
+        if (d < d2) { d2 = d; melhor = i; }
+      }
+      return { dist: Math.sqrt(d2), i: melhor, box: melhor === P.boxIdx };
+    },
+
     /* posição a X unidades de comprimento de arco da linha de chegada */
     atArc: function (s) {
       let i = Math.round(s / TRACK_SPACING) % n;
@@ -1046,7 +1108,61 @@ function buildTrack(def) {
       return pts[i];
     }
   };
+  track.pit = buildPit(track);
   return track;
+}
+
+/* ---------- boxes ----------
+   O eixo dos boxes é a própria linha central deslocada para um lado, com
+   rampa na entrada e na saída para emendar na pista. O lado é escolhido
+   sozinho: o que tiver mais espaço livre, para não cair sobre outro
+   trecho do circuito. */
+const PIT_BEFORE = 520;    /* quanto antes da linha começa a entrada */
+const PIT_AFTER = 330;     /* quanto depois da linha termina a saída */
+const PIT_OFFSET = 42;     /* distância da borda da pista até o eixo do box */
+
+function buildPit(track) {
+  /* índice na linha central de onde a entrada dos boxes começa */
+  const base = Math.round(((track.length - PIT_BEFORE + track.length) % track.length) / TRACK_SPACING);
+  const escolher = lado => {
+    const pts = pitPoints(track, lado);
+    let folga = Infinity;
+    for (let i = 4; i < pts.length - 4; i += 6) {
+      const p = pts[i];
+      const j = track.nearestIndex(p.x, p.y, null);
+      /* o ponto i do box corresponde a este ponto da linha central */
+      const iTrack = (base + i) % track.n;
+      const d = Math.abs(j - iTrack);
+      const dArc = Math.min(d, track.n - d) * TRACK_SPACING;
+      if (dArc < 500) continue;      /* o trecho vizinho não conta */
+      folga = Math.min(folga, Math.hypot(p.x - track.pts[j].x, p.y - track.pts[j].y));
+    }
+    return { lado: lado, pts: pts, folga: folga };
+  };
+  const a = escolher(1), b = escolher(-1);
+  const bom = a.folga >= b.folga ? a : b;
+  return {
+    pts: bom.pts, side: bom.lado,
+    boxIdx: Math.round(bom.pts.length * 0.56),
+    base: base,                  /* ponto da linha central onde a entrada começa */
+    len: PIT_BEFORE + PIT_AFTER
+  };
+}
+
+function pitPoints(track, lado) {
+  const L = track.length, sp = TRACK_SPACING;
+  const total = PIT_BEFORE + PIT_AFTER;
+  const n = Math.round(total / sp);
+  const inicio = (L - PIT_BEFORE + L) % L;
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const p = track.atArc((inicio + i * sp) % L);
+    const u = i / n;
+    const rampa = clamp(Math.min(u / 0.17, (1 - u) / 0.17), 0, 1);
+    const off = lado * (track.half + PIT_OFFSET) * rampa;
+    out.push({ x: p.x + p.nx * off, y: p.y + p.ny * off, ang: p.ang, u: u });
+  }
+  return out;
 }
 
 /* ===== car.js ===== */
@@ -1060,6 +1176,27 @@ function buildTrack(def) {
 
 /* proporções de um monoposto visto de cima: comprido e estreito,
    com as rodas para fora da carroceria */
+/* ---------- câmbio ----------
+   GEAR_TOP é a fração da velocidade máxima em que cada marcha bate o
+   corte. A curva de torque faz o motor render mais perto do corte: é o
+   que dá sentido a trocar na hora certa. */
+const GEAR_TOP = [0.20, 0.35, 0.52, 0.69, 0.85, 1.0];
+const SHIFT_TIME = 0.10;
+/* Depois de subir a marcha a rotação cai para ~0.55 (a 1ª para a 2ª é o
+   salto maior). Se o limite para reduzir ficar perto disso, ele sobe e
+   desce sem parar. Daí a folga larga e o bloqueio após cada troca. */
+const SHIFT_DOWN_RPM = 0.42;
+const SHIFT_LOCK = 0.35;
+
+/* boxes */
+const PIT_SPEED = 146;     /* limitador, ~90 km/h */
+const PIT_SERVICE = 2.2;   /* segundos parado trocando pneu */
+
+function torqueAt(x) {
+  if (x < 0.85) return clamp(0.62 + 0.62 * x, 0.62, 1.15);
+  return clamp(1.15 - (x - 0.85) * 1.6, 0.58, 1.15);
+}
+
 const CAR_LEN = 34, CAR_WID = 20;
 const WHEEL_FX = 8.5, WHEEL_FY = 8.6;    /* eixo dianteiro */
 const WHEEL_RX = -9.5, WHEEL_RY = 9.2;   /* eixo traseiro  */
@@ -1081,10 +1218,29 @@ class Car {
     this.draft = 0;          /* 0..1, quanto vácuo está pegando agora */
     this.lapClean = true;    /* a volta atual vale como tempo? */
     this.tyre = 1;           /* 1 = pneu novo, 0.35 = acabado */
+    this.tyreLoss = 0;
     this.wet = 0;            /* 0 = pista seca, 1 = encharcada */
+    this.gear = 0;           /* 0..5 = 1ª a 6ª */
+    this.rpm = 0;            /* 0..1.15, sendo 1 o corte */
+    this.shiftT = 0;         /* tempo restante de troca (sem tração) */
+    this.shiftLock = 0;      /* trava contra troca em sequência */
+    this.shiftFlash = 0;
+    this.inPit = false;      /* dentro do corredor dos boxes */
+    this.pitPhase = 0;       /* 0 fora, 1 parado sendo atendido, 2 já atendido */
+    this.pitTimer = 0;
+    this.pitStops = 0;
+    this.pitWanted = false;  /* a IA usa para decidir entrar */
     this.outTimer = 0;
     this.wheelTrail = [null, null];
     this.assist = 0.55;
+  }
+
+  shiftTo(g) {
+    if (g === this.gear) return;
+    this.gear = g;
+    this.shiftT = SHIFT_TIME;
+    this.shiftLock = SHIFT_LOCK;
+    this.shiftFlash = 0.18;
   }
 
   placeAtArc(s, lateral) {
@@ -1093,6 +1249,7 @@ class Car {
     this.y = p.y + p.ny * lateral;
     this.angle = p.ang;
     this.vx = 0; this.vy = 0;
+    this.gear = 0; this.rpm = 0; this.shiftT = 0; this.shiftLock = 0;
     this.idx = this.prevIdx = this.track.nearestIndex(this.x, this.y, null);
   }
 
@@ -1112,38 +1269,89 @@ class Car {
 
     /* limites de pista: passar da zebra por mais de um instante anula a
        volta. Sem isso dá para cortar curva e bater recorde sem merecer. */
-    if (surf.dist > track.half + 14) {
+    if (surf.dist > track.half + 14 && !this.inPit) {
       this.outTimer += dt;
       if (this.outTimer > 0.15) this.lapClean = false;
     } else {
       this.outTimer = 0;
     }
 
-    const off = this.offTrack;
+    /* ---- boxes ----
+       O corredor vale como pista: nada de penalidade de grama nem volta
+       anulada, mas com limitador de velocidade. */
+    const P = track.pit;
+    let pitInfo = null;
+    if (P) {
+      const dIdx = Math.min(this.idx, track.n - this.idx);
+      if (dIdx * track.spacing < P.len * 0.75) pitInfo = track.pitAt(this.x, this.y);
+    }
+    this.inPit = !!(pitInfo && pitInfo.dist < 30 && surf.dist > track.half * 0.75);
+    if (this.inPit) {
+      this.lapClean = this.lapClean;      /* o box não anula a volta */
+      this.outTimer = 0;
+      if (fwd > PIT_SPEED) fwd = PIT_SPEED;
+      /* parada na vaga */
+      const naVaga = Math.abs(pitInfo.i - P.boxIdx) <= 3;
+      if (this.pitPhase === 0 && naVaga && speed0 < 38) {
+        this.pitPhase = 1; this.pitTimer = PIT_SERVICE;
+      }
+      if (this.pitPhase === 1) {
+        this.pitTimer -= dt;
+        fwd = 0; lat = 0;
+        this.vx = 0; this.vy = 0;
+        if (this.pitTimer <= 0) {
+          this.tyre = 1; this.pitPhase = 2; this.pitStops++; this.pitWanted = false;
+        }
+      }
+    } else if (this.pitPhase === 2) {
+      this.pitPhase = 0;
+    }
+
+    const off = this.offTrack && !this.inPit;
     const power = (off ? 0.48 : 1) * (1 - this.wet * 0.10);
     let drag = off ? 2.9 : 1.06 + (fwd > 0 ? fwd / sp.top * 0.5 : 0);
     /* no vácuo o carro da frente abre o ar: menos arrasto, mais ponta */
     if (!off && this.draft > 0) drag *= 1 - 0.17 * this.draft;
 
+    /* Pneu: gasta com o tempo, e MUITO mais atravessado. É o custo do
+       drift - render pontos custa borracha, e borracha gasta custa volta. */
+    const gasto = (0.0038 + Math.abs(this.slip) * 0.013 +
+      (speed0 / sp.top) * 0.0020) * dt;
+    this.tyre = Math.max(0.35, this.tyre - gasto);
+    /* a perda cresce mais rápido no fim da vida do pneu: é isso que faz a
+       parada nos boxes virar decisão, e não enfeite */
+    const velho = Math.pow(1 - this.tyre, 1.4) * 1.70;
+    this.tyreLoss = velho;      /* a IA usa para levantar o pé */
+
+    /* ---- câmbio ---- */
+    const topG = sp.top * GEAR_TOP[this.gear];
+    this.rpm = clamp(Math.max(fwd, 0) / topG, 0, 1.15);
+    if (this.shiftT > 0) this.shiftT -= dt;
+    if (this.shiftLock > 0) this.shiftLock -= dt;
+    if (this.shiftFlash > 0) this.shiftFlash -= dt;
+
+    if (inp.shiftUp && this.gear < 5 && this.shiftT <= 0) this.shiftTo(this.gear + 1);
+    else if (inp.shiftDown && this.gear > 0 && this.shiftT <= 0) this.shiftTo(this.gear - 1);
+    else if (inp.autoGear !== false && this.shiftT <= 0 && this.shiftLock <= 0) {
+      if (this.rpm > 0.97 && this.gear < 5) this.shiftTo(this.gear + 1);
+      else if (this.gear > 0 && this.rpm < SHIFT_DOWN_RPM &&
+        fwd / (sp.top * GEAR_TOP[this.gear - 1]) < 0.99) this.shiftTo(this.gear - 1);
+    }
+
     /* motor e freio */
-    if (inp.throttle > 0) fwd += sp.engine * power * inp.throttle * dt;
+    const torque = this.shiftT > 0 ? 0 : torqueAt(this.rpm);
+    if (inp.throttle > 0) fwd += sp.engine * torque * power * inp.throttle * dt;
     if (inp.brake > 0) {
-      if (fwd > 2) fwd -= sp.brake * (1 - this.wet * 0.24) * inp.brake * dt;
+      if (fwd > 2) fwd -= sp.brake * (1 - this.wet * 0.24) *
+        clamp(1 - velho * 0.11, 0.84, 1) * inp.brake * dt;
       else fwd = Math.max(fwd - 260 * inp.brake * dt, -130);
     }
     fwd -= fwd * drag * dt;
     if (inp.handbrake && fwd > 0) fwd -= fwd * 0.9 * dt;
 
-    /* Pneu: gasta com o tempo, e MUITO mais atravessado. É o custo do
-       drift - render pontos custa borracha, e borracha gasta custa volta. */
-    const gasto = (0.0022 + Math.abs(this.slip) * 0.011 +
-      (speed0 / sp.top) * 0.0014) * dt;
-    this.tyre = Math.max(0.35, this.tyre - gasto);
-    const velho = 1 - this.tyre;
-
     /* aderência lateral: quanto mais perto de 1, mais escorrega */
     let g = inp.handbrake ? sp.driftGrip : sp.grip;
-    g = Math.min(0.988, g + velho * 0.045 + this.wet * 0.034);
+    g = Math.min(0.988, g + velho * 0.042 + this.wet * 0.034);
     if (off) g = Math.min(0.972, g + 0.075);
     if (this.onKerb) g = Math.min(0.975, g + 0.03);
     /* acelerar forte durante a derrapagem mantém o carro atravessado */
@@ -1161,7 +1369,7 @@ class Car {
     const hiDamp = 1 - 0.40 * Math.min(1, speed / sp.top);
     const dir = fwd >= -1 ? 1 : -1;
     this.steerAngle += (inp.steer - this.steerAngle) * Math.min(1, dt * 10);
-    this.angle += this.steerAngle * sp.turn * (0.88 + 0.12 * this.tyre) *
+    this.angle += this.steerAngle * sp.turn * clamp(1 - velho * 0.13, 0.80, 1) *
       resp * hiDamp * dir * dt;
 
     /* ângulo de derrapagem */
@@ -1180,7 +1388,7 @@ class Car {
 
     /* muros e limites do circuito */
     const limit = track.half + track.runoff;
-    if (surf.dist > limit) {
+    if (surf.dist > limit && !this.inPit) {
       const s2 = track.surfaceAt(this.x, this.y, this.idx);
       if (s2.dist > limit) {
         const over = s2.dist - limit;
@@ -1335,6 +1543,7 @@ class AIDriver {
     /* Erros. Sem eles o pelotão se ordena por ritmo na primeira volta e
        fica assim até o fim: nenhuma corrida tem história. */
     this.erroEm = 20 + Math.random() * 90;
+    this.jaParou = false;
     this.erro = null;
     this.erroT = 0;
   }
@@ -1371,6 +1580,37 @@ class AIDriver {
     }
 
     this.sorteiaErro(dt, speed);
+
+    /* ---- boxes ----
+       Só vale a pena em corrida longa: numa de 3 voltas o pneu não chega
+       a acabar e a parada custaria mais do que rende. */
+    const P = track.pit;
+    const kPit = P ? track.pitIndexFor(car.idx) : -1;
+
+    /* entra cedo o bastante para a borracha nova render: parar na última
+       volta não adianta nada */
+    if (P && !this.jaParou && !car.pitWanted && car.tyre < 0.70 &&
+      voltasDaCorrida() >= 5 && car.lap >= 1 && car.lap <= voltasDaCorrida() - 2) {
+      car.pitWanted = true;
+    }
+    if (car.pitPhase === 2) { this.jaParou = true; car.pitWanted = false; }
+
+    /* só entra se ainda estiver ANTES da vaga; senão espera a volta seguinte */
+    if (P && car.pitWanted && kPit >= 0 &&
+      (car.inPit || kPit < P.boxIdx - 6) && kPit < P.pts.length - 6) {
+      const alvo = P.pts[Math.min(kPit + 14, P.pts.length - 1)];
+      const dif = wrapAngle(Math.atan2(alvo.y - car.y, alvo.x - car.x) - car.angle);
+      /* freia para a vaga quando ela está perto */
+      const paraVaga = (P.boxIdx - kPit) * track.spacing;
+      const quaseLa = car.inPit && paraVaga < 40;
+      const rapidoDemais = speed > (quaseLa ? 25 : 125);
+      return {
+        steer: clamp(dif * 2.3, -1, 1),
+        throttle: rapidoDemais ? 0 : (quaseLa ? 0 : 0.45),
+        brake: rapidoDemais ? 1 : 0,
+        handbrake: false
+      };
+    }
 
     /* ponto de mira à frente, proporcional à velocidade */
     const aheadUnits = (off ? 30 : 46) + speed * 0.38;
@@ -1410,7 +1650,9 @@ class AIDriver {
        raio = v / w, com w máximo = turn * (1 - 0.4 * v/top).
        Resolvendo para v dá a velocidade máxima de passagem na curva. */
     const yawLimit = car.spec.turn / (worst + 0.4 * car.spec.turn / car.spec.top);
-    let target = 0.90 * this.skill * yawLimit * (1 - car.wet * 0.13);
+    /* com pneu gasto a IA anda mais devagar, senão sai da pista */
+    let target = 0.90 * this.skill * yawLimit *
+      (1 - car.wet * 0.13) * (1 - (car.tyreLoss || 0) * 0.11);
     target = Math.min(target, car.spec.top * this.skill);
     if (off) target = Math.min(target, 190);
     /* muito atravessado em relação ao alvo: reduz até se alinhar */
@@ -1809,6 +2051,46 @@ function buildTrackLayer(track) {
       ctx.closePath();
       ctx.fillStyle = '#b9a06a';
       ctx.fill();
+    }
+  }
+
+  /* ---------- boxes ----------
+     Desenhado antes do asfalto: nas rampas de entrada e saída a pista
+     passa por cima e a emenda some. */
+  if (track.pit) {
+    const P = track.pit;
+    const linha = pts => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    };
+    linha(P.pts);
+    ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 56; ctx.stroke();
+    linha(P.pts);
+    ctx.strokeStyle = '#63666d'; ctx.lineWidth = 46; ctx.stroke();
+    linha(P.pts);
+    ctx.strokeStyle = 'rgba(240,244,248,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+
+    /* garagens e a vaga de cada equipe */
+    for (let i = 12; i < P.pts.length - 12; i += 11) {
+      const p = P.pts[i];
+      const n = [-Math.sin(p.ang), Math.cos(p.ang)];
+      const o = P.side * 40;
+      ctx.save();
+      ctx.translate(p.x + n[0] * o, p.y + n[1] * o);
+      ctx.rotate(p.ang);
+      ctx.fillStyle = '#2f343d';
+      ctx.fillRect(-16, -18, 32, 36);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(-16, -18 + (P.side > 0 ? 30 : 0), 32, 6);
+      ctx.restore();
+      /* vaga pintada no chão */
+      ctx.save();
+      ctx.translate(p.x + n[0] * P.side * 13, p.y + n[1] * P.side * 13);
+      ctx.rotate(p.ang);
+      ctx.strokeStyle = 'rgba(240,244,248,0.45)'; ctx.lineWidth = 1.4;
+      ctx.strokeRect(-15, -9, 30, 18);
+      ctx.restore();
     }
   }
 
@@ -2400,7 +2682,7 @@ const Season = {
 
 /* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
    version.json do servidor para descobrir se o aparelho está atrasado. */
-const APP_VERSION = 30;
+const APP_VERSION = 44;
 
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
@@ -2414,8 +2696,10 @@ const Game = {
   totalLaps: 3, finishOrder: [],
   settings: {
     autoGas: false, assist: true, sound: true, analog: true,
-    opponents: 9, difficulty: 1, laps: 0, clima: 0   /* 0 seco, 1 chuva, 2 sorteio */
+    opponents: 9, difficulty: 1, laps: 0, clima: 0,  /* 0 seco, 1 chuva, 2 sorteio */
+    cambio: 0                                        /* 0 automático, 1 manual */
   },
+  lastInput: null,
   wet: 0,
   records: {},
   teamPickFor: 'quick',      /* de onde a tela de equipes foi aberta */
@@ -2424,6 +2708,9 @@ const Game = {
   toast: { text: '', life: 0 },
   driftPop: { text: '', life: 0 }
 };
+
+/* a IA consulta para decidir se vale parar nos boxes */
+function voltasDaCorrida() { return Game.totalLaps || 3; }
 
 /* ---------------- armazenamento ---------------- */
 function loadStore() {
@@ -2483,7 +2770,7 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 /* ---------------- controles ---------------- */
 const keys = {};
 /* gas e brake são 0..1 (pedal analógico); os outros, 0 ou 1 */
-const touch = { left: 0, right: 0, gas: 0, brake: 0, drift: 0 };
+const touch = { left: 0, right: 0, gas: 0, brake: 0, drift: 0, up: 0, down: 0 };
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -2571,6 +2858,9 @@ function bindTouch() {
   pad.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+/* troca de marcha conta no toque, não enquanto segura */
+let prevUp = false, prevDown = false;
+
 function playerInput() {
   const s = Game.settings;
   let steer = 0;
@@ -2581,7 +2871,18 @@ function playerInput() {
   const hand = (keys.Space || keys.ShiftLeft || touch.drift) ? true : false;
   if (s.autoGas && !brake) gas = 1;
   if (Game.state !== 'racing') { gas = Game.state === 'countdown' ? gas * 0 : 0; brake = 0; }
-  return { steer: steer, throttle: gas, brake: brake, handbrake: hand };
+
+  const manual = s.cambio === 1;
+  const upAgora = !!(keys.KeyE || keys.PageUp || touch.up);
+  const downAgora = !!(keys.KeyQ || keys.PageDown || touch.down);
+  const subiu = manual && upAgora && !prevUp;
+  const desceu = manual && downAgora && !prevDown;
+  prevUp = upAgora; prevDown = downAgora;
+
+  return {
+    steer: steer, throttle: gas, brake: brake, handbrake: hand,
+    autoGear: !manual, shiftUp: subiu, shiftDown: desceu
+  };
 }
 
 /* ---------------- montagem da corrida ---------------- */
@@ -2706,6 +3007,7 @@ function simulate(dt, now) {
   }
 
   const inp = playerInput();
+  G.lastInput = inp;
 
   for (let i = 0; i < G.ais.length; i++) {
     const ai = G.ais[i];
@@ -2979,6 +3281,7 @@ function updateHudStatic() {
   el('hud-best-wrap').classList.toggle('hidden', Game.mode === 'drift');
   el('hud-drift-wrap').classList.toggle('hidden', false);
   el('btn-gas').classList.toggle('hidden', !!Game.settings.autoGas);
+  el('gear-btns').classList.toggle('hidden', Game.settings.cambio !== 1);
 }
 
 /* As cinco luzes acendem uma a uma; quando TODAS apagam, é a largada -
@@ -3020,6 +3323,24 @@ function hudTick(dt) {
   const r = rec(G.trackDef.id);
   el('hud-speed').textContent = Math.round(p.speed * 0.62);
   el('hud-speed-bar').style.width = Math.round(clamp(p.speed / p.spec.top, 0, 1) * 100) + '%';
+  el('hud-rev').style.width = Math.round(clamp(p.rpm / 1.05, 0, 1) * 100) + '%';
+  el('hud-rev').parentElement.classList.toggle('corte', p.rpm > 0.93);
+  el('hud-gear').textContent = p.gear + 1;
+  /* boxes: aviso para entrar, e a contagem enquanto troca o pneu */
+  const pm = el('pit-msg');
+  if (p.pitPhase === 1) {
+    pm.classList.remove('hidden');
+    pm.innerHTML = 'TROCANDO PNEU<b>' + Math.max(0, p.pitTimer).toFixed(1) + 's</b>';
+  } else if (p.inPit) {
+    pm.classList.remove('hidden');
+    pm.innerHTML = 'CORREDOR DOS BOXES · limitador ligado';
+  } else if (p.tyre < 0.68 && G.totalLaps >= 5 && p.lap <= G.totalLaps - 2) {
+    pm.classList.remove('hidden');
+    pm.innerHTML = 'PNEU GASTO · entre nos boxes';
+  } else {
+    pm.classList.add('hidden');
+  }
+
   const pneu = (p.tyre - 0.35) / 0.65;
   const tb = el('hud-tyre');
   tb.style.width = Math.round(clamp(pneu, 0, 1) * 100) + '%';
@@ -3388,6 +3709,8 @@ function buildSettings() {
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
   setDifficultyLabel(s.difficulty);
+  el('set-cambio').value = s.cambio;
+  el('set-cambio-val').textContent = s.cambio ? 'Manual' : 'Automático';
   el('set-clima').value = s.clima;
   el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][s.clima];
   el('set-laps').value = s.laps;
@@ -3455,6 +3778,11 @@ function wireUI() {
     Game.settings.difficulty = +e.target.value;
     setDifficultyLabel(+e.target.value); saveSettings();
   };
+  el('set-cambio').oninput = e => {
+    Game.settings.cambio = +e.target.value;
+    el('set-cambio-val').textContent = +e.target.value ? 'Manual' : 'Automático';
+    saveSettings(); updateHudStatic();
+  };
   el('set-clima').oninput = e => {
     Game.settings.clima = +e.target.value;
     el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][+e.target.value]; saveSettings();
@@ -3486,8 +3814,10 @@ setInterval(() => {
   const p = Game.player;
   const playing = (Game.state === 'racing' || Game.state === 'countdown');
   if (!p) { Sound.updateEngine(0, 0, 0, false); return; }
-  const inp = playerInput();
-  const rpm = clamp(p.speed / p.spec.top, 0, 1) * 0.75 + inp.throttle * 0.25;
+  const inp = Game.lastInput || { throttle: 0 };
+  /* a rotação vem do câmbio, então o tom CAI a cada troca - é isso que
+     faz o motor soar como motor e não como uma sirene subindo */
+  const rpm = clamp(p.rpm * 0.82 + inp.throttle * 0.12, 0, 1.1);
   /* cada motor tem seu tom: dá para reconhecer a equipe de ouvido */
   const tom = p.entry && p.entry.team ? 0.82 + (p.entry.team.engine - 550) / 210 : 1;
   Sound.updateEngine(rpm, inp.throttle, Math.abs(p.slip) * (p.speed > 60 ? 1 : 0), playing, tom);

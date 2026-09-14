@@ -242,6 +242,46 @@ function buildTrackLayer(track) {
     }
   }
 
+  /* ---------- boxes ----------
+     Desenhado antes do asfalto: nas rampas de entrada e saída a pista
+     passa por cima e a emenda some. */
+  if (track.pit) {
+    const P = track.pit;
+    const linha = pts => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    };
+    linha(P.pts);
+    ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 56; ctx.stroke();
+    linha(P.pts);
+    ctx.strokeStyle = '#63666d'; ctx.lineWidth = 46; ctx.stroke();
+    linha(P.pts);
+    ctx.strokeStyle = 'rgba(240,244,248,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+
+    /* garagens e a vaga de cada equipe */
+    for (let i = 12; i < P.pts.length - 12; i += 11) {
+      const p = P.pts[i];
+      const n = [-Math.sin(p.ang), Math.cos(p.ang)];
+      const o = P.side * 40;
+      ctx.save();
+      ctx.translate(p.x + n[0] * o, p.y + n[1] * o);
+      ctx.rotate(p.ang);
+      ctx.fillStyle = '#2f343d';
+      ctx.fillRect(-16, -18, 32, 36);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(-16, -18 + (P.side > 0 ? 30 : 0), 32, 6);
+      ctx.restore();
+      /* vaga pintada no chão */
+      ctx.save();
+      ctx.translate(p.x + n[0] * P.side * 13, p.y + n[1] * P.side * 13);
+      ctx.rotate(p.ang);
+      ctx.strokeStyle = 'rgba(240,244,248,0.45)'; ctx.lineWidth = 1.4;
+      ctx.strokeRect(-15, -9, 30, 18);
+      ctx.restore();
+    }
+  }
+
   /* ---------- asfalto ---------- */
   centerPath(ctx, track);
   ctx.strokeStyle = 'rgba(0,0,0,0.30)';

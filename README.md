@@ -57,6 +57,7 @@ E abra `http://localhost:8123`.
 | Acelerar | pedal **GÁS** | ↑ |
 | Frear / dar ré | pedal **FREIO** | ↓ |
 | Derrapar (freio de mão) | alavanca **DRIFT** | espaço |
+| Trocar marcha (modo manual) | ▲ ▼ | E / Q |
 | Pausar | botão ‖ | P ou Esc |
 
 O gás e o freio são pedais com curso: ao encostar, a placa gira no eixo de cima
@@ -156,6 +157,28 @@ sem merecer.
 lugar das marcas de pneu. No modo história cada etapa tem o seu clima, sempre o
 mesmo para aquela rodada.
 
+**Câmbio de 6 marchas.** O motor rende mais perto do corte, então a marcha certa
+importa. Sobe 2ª aos 51, 3ª aos 105, 4ª aos 142, 5ª aos 173 e 6ª aos 213 km/h. Em
+Ajustes dá para trocar para manual e usar os botões ▲ ▼. Durante a troca o carro
+fica sem tração por um instante — é por isso que o som do motor cai a cada
+passagem, em vez de só subir.
+
+**Boxes.** Cada circuito tem corredor de boxes com limitador, garagens e vaga
+pintada. Entre, pare na vaga e troque o pneu em 2,2 s.
+
+A parada é uma decisão de verdade, não enfeite — os números foram calibrados
+para isso:
+
+| | |
+|---|---|
+| Pneu acabado custa | **1,89 s por volta** |
+| A parada custa | **5,0 s** |
+| Logo, compensa se faltarem | **3+ voltas** |
+
+Numa corrida de 6 voltas em Monza, 7 dos 10 carros param e o pódio inteiro é de
+quem parou — mas quem não parou ainda termina a prova. Em Spa, de 4 voltas,
+ninguém para: não dá tempo de o pneu acabar.
+
 ---
 
 ## Como o código está organizado
@@ -166,7 +189,7 @@ style.css               interface (respeita o notch do iPhone)
 js/utils.js             matemática, splines e suavização de traçado
 js/teams.js             as 10 equipes, pilotos e desempenho dos carros
 js/tracks.js            os 7 circuitos + geometria derivada
-js/car.js               física de drift
+js/car.js               física de drift, câmbio, pneu e boxes
 js/ai.js                pilotos do computador e montagem do grid
 js/render.js            circuito, cenário, monopostos e efeitos
 js/season.js            campeonato, classificação e grid do modo história

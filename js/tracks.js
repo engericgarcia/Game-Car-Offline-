@@ -15,7 +15,7 @@ const TRACK_DEFS = [
     country: '🇮🇹',
     width: 112, runoff: 100, minRadius: 70,
     grass: '#3f7d3a', asphalt: '#5b5f66',
-    laps: 3, difficulty: 1,
+    laps: 5, difficulty: 1,
     /* Reta principal → Variante del Rettifilo → Curva Grande → Variante della
        Roggia → Lesmo 1 e 2 → reta do Serraglio → Variante Ascari → reta
        oposta → Parabolica. Sentido horário. */
@@ -44,7 +44,7 @@ const TRACK_DEFS = [
     country: '🇲🇨',
     width: 78, runoff: 12, minRadius: 52,
     grass: '#4a5568', asphalt: '#63676e',
-    laps: 4, difficulty: 3, urban: true,
+    laps: 6, difficulty: 3, urban: true,
     /* Sainte Dévote → Beau Rivage → Massenet → Casino → Mirabeau → Grand
        Hotel → Portier → túnel → Nouvelle Chicane → Tabac → piscina →
        Rascasse → Anthony Noghès. */
@@ -77,7 +77,7 @@ const TRACK_DEFS = [
     country: '🇧🇷',
     width: 100, runoff: 78, minRadius: 62,
     grass: '#437f36', asphalt: '#585c62',
-    laps: 4, difficulty: 2,
+    laps: 6, difficulty: 2,
     /* Subida dos boxes → S do Senna → Curva do Sol → Reta Oposta → Descida
        do Lago → Ferradura → Laranjinha → Pinheirinho → Bico de Pato →
        Mergulho → Junção. Sentido anti-horário. */
@@ -106,7 +106,7 @@ const TRACK_DEFS = [
     country: '🇧🇪',
     width: 106, runoff: 92, minRadius: 68,
     grass: '#38703a', asphalt: '#54585e',
-    laps: 3, difficulty: 2,
+    laps: 4, difficulty: 2,
     /* La Source → Eau Rouge/Raidillon → reta Kemmel → Les Combes → Malmedy →
        Rivage → Pouhon → Fagnes → Paul Frère → Stavelot → Blanchimont →
        Bus Stop. */
@@ -137,7 +137,7 @@ const TRACK_DEFS = [
     country: '🇬🇧',
     width: 104, runoff: 90, minRadius: 72,
     grass: '#3d7a3c', asphalt: '#585d64',
-    laps: 3, difficulty: 2,
+    laps: 6, difficulty: 2,
     /* reta dos boxes → Copse → Maggotts/Becketts → reta Hangar → Stowe →
        Vale/Club → Abbey → setor lento da arena → Wellington. */
     points: [
@@ -164,7 +164,7 @@ const TRACK_DEFS = [
     country: '🇳🇱',
     width: 80, runoff: 50, minRadius: 54,
     grass: '#8a7f5e', asphalt: '#5c6068',
-    laps: 4, difficulty: 3,
+    laps: 7, difficulty: 3,
     /* Tarzan → Gerlach → Hugenholtz → Scheivlak → Masters → Hans Ernst →
        Kumho → Arie Luyendyk, de volta para a reta. */
     points: [
@@ -263,6 +263,7 @@ function buildTrack(def) {
 
   const track = {
     def: def, pts: pts, n: n, spacing: TRACK_SPACING,
+    pit: null,
     width: def.width, half: def.width / 2, runoff: def.runoff,
     length: n * TRACK_SPACING,
     bounds: { x: minX - pad, y: minY - pad, w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 },
@@ -312,6 +313,29 @@ function buildTrack(def) {
       };
     },
 
+    /* converte um índice da linha central no índice equivalente do
+       corredor dos boxes; -1 quando o carro não está no trecho deles */
+    pitIndexFor: function (idx) {
+      const P = track.pit;
+      if (!P) return -1;
+      const k = (idx - P.base + track.n) % track.n;
+      return k < P.pts.length ? k : -1;
+    },
+
+    /* distância até o eixo dos boxes, e onde nele. Só faz sentido perto
+       da linha de chegada, então quem chama já filtra por isso. */
+    pitAt: function (x, y) {
+      const P = track.pit;
+      if (!P) return null;
+      let melhor = -1, d2 = Infinity;
+      for (let i = 0; i < P.pts.length; i++) {
+        const p = P.pts[i];
+        const d = dist2(x, y, p.x, p.y);
+        if (d < d2) { d2 = d; melhor = i; }
+      }
+      return { dist: Math.sqrt(d2), i: melhor, box: melhor === P.boxIdx };
+    },
+
     /* posição a X unidades de comprimento de arco da linha de chegada */
     atArc: function (s) {
       let i = Math.round(s / TRACK_SPACING) % n;
@@ -319,5 +343,59 @@ function buildTrack(def) {
       return pts[i];
     }
   };
+  track.pit = buildPit(track);
   return track;
+}
+
+/* ---------- boxes ----------
+   O eixo dos boxes é a própria linha central deslocada para um lado, com
+   rampa na entrada e na saída para emendar na pista. O lado é escolhido
+   sozinho: o que tiver mais espaço livre, para não cair sobre outro
+   trecho do circuito. */
+const PIT_BEFORE = 520;    /* quanto antes da linha começa a entrada */
+const PIT_AFTER = 330;     /* quanto depois da linha termina a saída */
+const PIT_OFFSET = 42;     /* distância da borda da pista até o eixo do box */
+
+function buildPit(track) {
+  /* índice na linha central de onde a entrada dos boxes começa */
+  const base = Math.round(((track.length - PIT_BEFORE + track.length) % track.length) / TRACK_SPACING);
+  const escolher = lado => {
+    const pts = pitPoints(track, lado);
+    let folga = Infinity;
+    for (let i = 4; i < pts.length - 4; i += 6) {
+      const p = pts[i];
+      const j = track.nearestIndex(p.x, p.y, null);
+      /* o ponto i do box corresponde a este ponto da linha central */
+      const iTrack = (base + i) % track.n;
+      const d = Math.abs(j - iTrack);
+      const dArc = Math.min(d, track.n - d) * TRACK_SPACING;
+      if (dArc < 500) continue;      /* o trecho vizinho não conta */
+      folga = Math.min(folga, Math.hypot(p.x - track.pts[j].x, p.y - track.pts[j].y));
+    }
+    return { lado: lado, pts: pts, folga: folga };
+  };
+  const a = escolher(1), b = escolher(-1);
+  const bom = a.folga >= b.folga ? a : b;
+  return {
+    pts: bom.pts, side: bom.lado,
+    boxIdx: Math.round(bom.pts.length * 0.56),
+    base: base,                  /* ponto da linha central onde a entrada começa */
+    len: PIT_BEFORE + PIT_AFTER
+  };
+}
+
+function pitPoints(track, lado) {
+  const L = track.length, sp = TRACK_SPACING;
+  const total = PIT_BEFORE + PIT_AFTER;
+  const n = Math.round(total / sp);
+  const inicio = (L - PIT_BEFORE + L) % L;
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const p = track.atArc((inicio + i * sp) % L);
+    const u = i / n;
+    const rampa = clamp(Math.min(u / 0.17, (1 - u) / 0.17), 0, 1);
+    const off = lado * (track.half + PIT_OFFSET) * rampa;
+    out.push({ x: p.x + p.nx * off, y: p.y + p.ny * off, ang: p.ang, u: u });
+  }
+  return out;
 }
