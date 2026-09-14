@@ -63,8 +63,11 @@ O gás e o freio são pedais com curso: ao encostar, a placa gira no eixo de cim
 e afunda no alojamento, acendendo. No Android o aparelho ainda dá um toque de
 vibração — curto no gás, mais firme no freio.
 
-Dá para **arrastar o polegar de ◀ para ▶ sem levantar o dedo** — a direção
-troca no meio do caminho.
+Dá para **arrastar o polegar de ◀ para ▶ sem levantar o dedo** — a direção troca
+no meio do caminho.
+
+Os pedais são **analógicos**: quanto mais embaixo na placa você encosta, mais
+acelera (ou freia), e a placa afunda na proporção. Dá para desligar em Ajustes.
 
 A largada usa as **cinco luzes** da F1: elas acendem uma a uma e a corrida
 começa quando todas apagam.
@@ -96,15 +99,17 @@ que o da `Verde Lima`.
 
 ## O que tem no jogo
 
-**5 circuitos**, com o traçado e a sequência de curvas dos originais:
+**7 circuitos**, com o traçado e a sequência de curvas dos originais:
 
-| Circuito | Curvas | Volta | Corrida | Caráter |
-|---|---|---|---|---|
-| 🇮🇹 Monza | 11 | ~25 s | 3 voltas | retões e chicanes; a mais rápida |
-| 🇲🇨 Mônaco | 19 | ~20 s | 4 voltas | rua estreita, muros, grampo do Grand Hotel |
-| 🇧🇷 Interlagos | 15 | ~21 s | 4 voltas | S do Senna, Reta Oposta, miolo técnico |
-| 🇧🇪 Spa | 19 | ~28 s | 3 voltas | La Source, Eau Rouge, Kemmel; a mais longa |
-| 🏁 Arena de Drift | — | ~12 s | 5 voltas | pista larguíssima, só para derrapar |
+| Circuito | Volta | Caráter |
+|---|---|---|
+| 🇮🇹 Monza | ~24 s | retões e chicanes; a mais rápida |
+| 🇧🇪 Spa | ~27 s | La Source, Eau Rouge, Kemmel; a mais longa |
+| 🇬🇧 Silverstone | ~17 s | esses de Maggotts/Becketts e a arena lenta |
+| 🇲🇨 Mônaco | ~20 s | rua estreita, muros, grampo do Grand Hotel |
+| 🇳🇱 Zandvoort | ~15 s | dunas, estreita e sem descanso |
+| 🇧🇷 Interlagos | ~20 s | S do Senna, Reta Oposta, miolo técnico |
+| 🏁 Arena de Drift | ~12 s | pista larguíssima, só para derrapar |
 
 Cada pista é larga o bastante para os seis carros correrem lado a lado.
 
@@ -115,15 +120,41 @@ próprios do projeto e ficam todos em [`js/teams.js`](js/teams.js).
 
 **4 modos:**
 
-- **Modo História** — escolha uma equipe e dispute um campeonato de 5 GPs.
-  Pontuação 25-18-15-12-10-8-6-4-2-1, classificação de pilotos e de
-  construtores, e a ordem de largada de cada etapa sai da classificação do
-  campeonato. Quem lidera larga na pole.
-- **Corrida rápida** — até 19 adversários, número de voltas ajustável.
-- **Contra-relógio** — sozinho na pista, atrás do recorde.
+- **Modo História** — escolha uma equipe e dispute um campeonato de 7 GPs.
+  Cada fim de semana tem **classificação** (3 voltas, a melhor define o grid) e
+  corrida, com pontuação 25-18-15-12-10-8-6-4-2-1 e classificação de pilotos e
+  de construtores. Dá para pular a classificação e receber um tempo de meio de
+  grid.
+- **Corrida rápida** — até 19 adversários, voltas e clima ajustáveis.
+- **Contra-relógio** — sozinho na pista, contra o **carro-fantasma** da sua
+  melhor volta.
 - **Ataque de drift** — 90 segundos para somar o máximo de pontos.
 
-A temporada, os recordes de volta e os de drift ficam salvos no aparelho.
+A temporada, os recordes de volta, os de drift e os fantasmas ficam salvos no
+aparelho.
+
+### O que acontece durante a corrida
+
+**Vácuo.** Colado atrás de outro carro você pega ar limpo e ganha até 26 km/h de
+ponta. É o que torna a reta uma oportunidade, e não só um trecho de espera.
+
+**A IA erra.** De vez em quando um adversário trava roda na freada, abre demais
+numa curva ou perde a traseira — cerca de um erro a cada 6 s em algum lugar de
+um grid de 20. Sem isso o pelotão se ordenava por ritmo na primeira volta e
+ficava assim até o fim.
+
+**Desgaste de pneu.** A borracha gasta com o tempo, e muito mais atravessado.
+Dirigindo limpo o pneu termina 3 voltas em 70%; derrapando o tempo todo cai para
+39%, e a volta passa de 25 s para 32 s. Render pontos de drift custa borracha, e
+borracha gasta custa volta.
+
+**Limites de pista.** Passar da zebra por mais de um instante anula a volta — o
+tempo fica vermelho no painel. Sem isso dava para cortar curva e bater recorde
+sem merecer.
+
+**Chuva.** Menos aderência, freio mais longo, ~2,8 s a mais por volta e spray no
+lugar das marcas de pneu. No modo história cada etapa tem o seu clima, sempre o
+mesmo para aquela rodada.
 
 ---
 
@@ -134,11 +165,11 @@ index.html              telas, HUD e botões de toque
 style.css               interface (respeita o notch do iPhone)
 js/utils.js             matemática, splines e suavização de traçado
 js/teams.js             as 10 equipes, pilotos e desempenho dos carros
-js/tracks.js            os 5 circuitos + geometria derivada
+js/tracks.js            os 7 circuitos + geometria derivada
 js/car.js               física de drift
 js/ai.js                pilotos do computador e montagem do grid
 js/render.js            circuito, cenário, monopostos e efeitos
-js/season.js            campeonato do modo história
+js/season.js            campeonato, classificação e grid do modo história
 js/game.js              laço principal, telas e regras
 sw.js                   cache offline (service worker)
 build.py                gera dist/index.html (arquivo único)
