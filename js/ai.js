@@ -25,6 +25,27 @@ class AIDriver {
     this.hbTimer = 0;
     this.stuck = 0;
     this.reverse = 0;
+    /* Erros. Sem eles o pelotão se ordena por ritmo na primeira volta e
+       fica assim até o fim: nenhuma corrida tem história. */
+    this.erroEm = 20 + Math.random() * 90;
+    this.erro = null;
+    this.erroT = 0;
+  }
+
+  sorteiaErro(dt, speed) {
+    if (this.erro) {
+      this.erroT -= dt;
+      if (this.erroT <= 0) this.erro = null;
+      return;
+    }
+    this.erroEm -= dt;
+    if (this.erroEm > 0 || speed < 130) return;
+    const r = Math.random();
+    if (r < 0.45) { this.erro = 'trava'; this.erroT = 0.55 + Math.random() * 0.3; }
+    else if (r < 0.85) { this.erro = 'abre'; this.erroT = 1.0 + Math.random() * 0.7; }
+    else { this.erro = 'roda'; this.erroT = 0.4 + Math.random() * 0.3; }
+    /* piloto melhor erra menos */
+    this.erroEm = (85 + Math.random() * 110) * (this.skill / 0.9);
   }
 
   think(dt, t) {
@@ -42,6 +63,8 @@ class AIDriver {
       return { steer: clamp(-rd * 2, -1, 1), throttle: 0, brake: 1, handbrake: false };
     }
 
+    this.sorteiaErro(dt, speed);
+
     /* ponto de mira à frente, proporcional à velocidade */
     const aheadUnits = (off ? 30 : 46) + speed * 0.38;
     const ai = (car.idx + Math.round(aheadUnits / track.spacing)) % n;
@@ -52,8 +75,10 @@ class AIDriver {
     const k = ap.curv;
     const apexPull = clamp(Math.abs(k) * track.length / 8, 0, 1);
     const wob = Math.sin((t * 0.0007) + this.noise) * 0.07;
-    const offset = off ? 0
+    let offset = off ? 0
       : (-Math.sign(k) * apexPull * 0.30 + this.lane * (1 - apexPull * 0.6) + wob) * track.half;
+    /* "abre demais": sai da trajetória para o lado de fora da curva */
+    if (this.erro === 'abre') offset += Math.sign(k) * track.half * 0.62;
     const tx = ap.x + ap.nx * offset;
     const ty = ap.y + ap.ny * offset;
 
@@ -78,11 +103,13 @@ class AIDriver {
        raio = v / w, com w máximo = turn * (1 - 0.4 * v/top).
        Resolvendo para v dá a velocidade máxima de passagem na curva. */
     const yawLimit = car.spec.turn / (worst + 0.4 * car.spec.turn / car.spec.top);
-    let target = 0.90 * this.skill * yawLimit;
+    let target = 0.90 * this.skill * yawLimit * (1 - car.wet * 0.13);
     target = Math.min(target, car.spec.top * this.skill);
     if (off) target = Math.min(target, 190);
     /* muito atravessado em relação ao alvo: reduz até se alinhar */
     if (Math.abs(diff) > 0.8) target = Math.min(target, 130);
+
+    if (this.erro === 'abre') target *= 1.13;   /* chega rápido demais */
 
     let throttle = 0, brake = 0;
     if (speed > target * 1.05) brake = clamp((speed - target) / 95, 0.2, 0.9);
@@ -95,9 +122,19 @@ class AIDriver {
       Math.abs(k) * track.length > 34) {
       this.hbTimer = 0.45;
     }
-    const handbrake = this.hbTimer > 0.2;
+    let handbrake = this.hbTimer > 0.2;
+    let esterco = steer;
 
-    return { steer: steer, throttle: throttle, brake: brake, handbrake: handbrake };
+    /* trava roda na freada: perde direção por um instante */
+    if (this.erro === 'trava') {
+      brake = 1; throttle = 0; esterco = steer * 0.3;
+    }
+    /* perde a traseira */
+    if (this.erro === 'roda') {
+      handbrake = true; esterco = clamp(steer * 1.7, -1, 1); throttle = Math.min(throttle, 0.5);
+    }
+
+    return { steer: esterco, throttle: throttle, brake: brake, handbrake: handbrake };
   }
 }
 

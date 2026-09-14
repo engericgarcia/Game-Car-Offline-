@@ -7,7 +7,8 @@
 
 const Season = {
   POINTS: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
-  CALENDAR: ['monza', 'spa', 'monaco', 'interlagos', 'arena'],
+  CALENDAR: ['monza', 'spa', 'silverstone', 'monaco',
+    'zandvoort', 'interlagos', 'arena'],
   data: null,
 
   load: function () {
@@ -37,6 +38,49 @@ const Season = {
   },
 
   active: function () { return !!this.data; },
+
+  /* ---- classificação ----
+     O jogador anda a volta; os adversários têm o tempo gerado a partir da
+     melhor volta possível da pista, dividida pelo ritmo da dupla
+     nível-de-dificuldade × força-da-equipe. */
+  qualiFeita: function () { return !!(this.data && this.data.grid); },
+
+  tempoAdversario: function (entry, def, difficulty) {
+    const ref = def.refLap || 25000;
+    const ritmo = DIFFICULTIES[clamp(difficulty | 0, 0, DIFFICULTIES.length - 1)].base * entry.team.tier;
+    const ruido = 1 + (Math.random() - 0.5) * 0.028;
+    return ref / ritmo * ruido;
+  },
+
+  /* tempoJogador em ms, ou null se ele não marcou volta válida */
+  aplicaQuali: function (tempoJogador, def, difficulty) {
+    const eu = this.playerId();
+    const linhas = this.entries().map(e => ({
+      entry: e,
+      tempo: e.id === eu ? tempoJogador : this.tempoAdversario(e, def, difficulty)
+    }));
+    linhas.sort((a, b) => {
+      if (a.tempo == null) return 1;
+      if (b.tempo == null) return -1;
+      return a.tempo - b.tempo;
+    });
+    this.data.grid = linhas.map(l => l.entry.id);
+    this.data.quali = linhas.map(l => ({ id: l.entry.id, tempo: l.tempo }));
+    this.save();
+    return linhas;
+  },
+
+  /* grid da corrida: o da classificação se houver, senão o campeonato */
+  gridDaCorrida: function () {
+    if (!this.data.grid) return this.gridOrder();
+    const porId = {};
+    for (const e of this.entries()) porId[e.id] = e;
+    return this.data.grid.map(id => porId[id]).filter(Boolean);
+  },
+
+  limpaQuali: function () {
+    delete this.data.grid; delete this.data.quali; this.save();
+  },
   finished: function () { return this.data && this.data.round >= this.CALENDAR.length; },
   total: function () { return this.CALENDAR.length; },
 
@@ -72,6 +116,8 @@ const Season = {
       playerPos: orderIds.indexOf(this.playerId()) + 1
     });
     this.data.round++;
+    delete this.data.grid;
+    delete this.data.quali;
     this.save();
     return gained;
   },

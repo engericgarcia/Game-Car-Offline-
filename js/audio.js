@@ -52,10 +52,11 @@ const Sound = {
   },
 
   /* chamado a cada quadro com o estado do carro do jogador */
-  updateEngine: function (rpm, load, slip, playing) {
+  updateEngine: function (rpm, load, slip, playing, tom) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    const freq = 48 + rpm * 300;
+    const t0 = tom || 1;
+    const freq = (48 + rpm * 300) * t0;
     this.engine.o1.frequency.setTargetAtTime(freq, t, 0.05);
     this.engine.o2.frequency.setTargetAtTime(freq * 0.5, t, 0.05);
     this.engine.filter.frequency.setTargetAtTime(500 + rpm * 2600 + load * 700, t, 0.06);

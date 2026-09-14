@@ -26,6 +26,11 @@ class Car {
     this.slip = 0; this.speed = 0; this.offTrack = false;
     this.driftScore = 0; this.driftCombo = 1; this.driftTimer = 0; this.driftBank = 0;
     this.hitTimer = 0; this.name = spec.name; this.halfPassed = true;
+    this.draft = 0;          /* 0..1, quanto vácuo está pegando agora */
+    this.lapClean = true;    /* a volta atual vale como tempo? */
+    this.tyre = 1;           /* 1 = pneu novo, 0.35 = acabado */
+    this.wet = 0;            /* 0 = pista seca, 1 = encharcada */
+    this.outTimer = 0;
     this.wheelTrail = [null, null];
     this.assist = 0.55;
   }
@@ -43,6 +48,7 @@ class Car {
     const track = this.track;
     const sp = this.spec;
     const ca = Math.cos(this.angle), sa = Math.sin(this.angle);
+    const speed0 = Math.hypot(this.vx, this.vy);
 
     let fwd = this.vx * ca + this.vy * sa;
     let lat = -this.vx * sa + this.vy * ca;
@@ -52,21 +58,40 @@ class Car {
     this.offTrack = !surf.onTrack;
     this.onKerb = surf.kerb;
 
+    /* limites de pista: passar da zebra por mais de um instante anula a
+       volta. Sem isso dá para cortar curva e bater recorde sem merecer. */
+    if (surf.dist > track.half + 14) {
+      this.outTimer += dt;
+      if (this.outTimer > 0.15) this.lapClean = false;
+    } else {
+      this.outTimer = 0;
+    }
+
     const off = this.offTrack;
-    const power = off ? 0.48 : 1;
-    const drag = off ? 2.9 : 1.06 + (fwd > 0 ? fwd / sp.top * 0.5 : 0);
+    const power = (off ? 0.48 : 1) * (1 - this.wet * 0.10);
+    let drag = off ? 2.9 : 1.06 + (fwd > 0 ? fwd / sp.top * 0.5 : 0);
+    /* no vácuo o carro da frente abre o ar: menos arrasto, mais ponta */
+    if (!off && this.draft > 0) drag *= 1 - 0.17 * this.draft;
 
     /* motor e freio */
     if (inp.throttle > 0) fwd += sp.engine * power * inp.throttle * dt;
     if (inp.brake > 0) {
-      if (fwd > 2) fwd -= sp.brake * inp.brake * dt;
+      if (fwd > 2) fwd -= sp.brake * (1 - this.wet * 0.24) * inp.brake * dt;
       else fwd = Math.max(fwd - 260 * inp.brake * dt, -130);
     }
     fwd -= fwd * drag * dt;
     if (inp.handbrake && fwd > 0) fwd -= fwd * 0.9 * dt;
 
+    /* Pneu: gasta com o tempo, e MUITO mais atravessado. É o custo do
+       drift - render pontos custa borracha, e borracha gasta custa volta. */
+    const gasto = (0.0022 + Math.abs(this.slip) * 0.011 +
+      (speed0 / sp.top) * 0.0014) * dt;
+    this.tyre = Math.max(0.35, this.tyre - gasto);
+    const velho = 1 - this.tyre;
+
     /* aderência lateral: quanto mais perto de 1, mais escorrega */
     let g = inp.handbrake ? sp.driftGrip : sp.grip;
+    g = Math.min(0.988, g + velho * 0.045 + this.wet * 0.034);
     if (off) g = Math.min(0.972, g + 0.075);
     if (this.onKerb) g = Math.min(0.975, g + 0.03);
     /* acelerar forte durante a derrapagem mantém o carro atravessado */
@@ -84,7 +109,8 @@ class Car {
     const hiDamp = 1 - 0.40 * Math.min(1, speed / sp.top);
     const dir = fwd >= -1 ? 1 : -1;
     this.steerAngle += (inp.steer - this.steerAngle) * Math.min(1, dt * 10);
-    this.angle += this.steerAngle * sp.turn * resp * hiDamp * dir * dt;
+    this.angle += this.steerAngle * sp.turn * (0.88 + 0.12 * this.tyre) *
+      resp * hiDamp * dir * dt;
 
     /* ângulo de derrapagem */
     this.slip = (speed > 6) ? wrapAngle(Math.atan2(this.vy, this.vx) - this.angle) : 0;
@@ -145,12 +171,14 @@ class Car {
           const t = now - this.lapStart;
           if (t > 3000) {
             this.lastLap = t;
+            this.lastLapClean = this.lapClean;
             this.lapTimes.push(t);
-            if (this.bestLap == null || t < this.bestLap) this.bestLap = t;
+            if (this.lapClean && (this.bestLap == null || t < this.bestLap)) this.bestLap = t;
           }
         }
         this.lap++;
         this.lapStart = now;
+        this.lapClean = true;
         this.halfPassed = false;
       }
     } else if (a < n * 0.28 && b > n * 0.72) {
@@ -167,6 +195,33 @@ class Car {
     const lx = front ? WHEEL_FX : WHEEL_RX;
     const ly = (right ? 1 : -1) * (front ? WHEEL_FY : WHEEL_RY);
     return [this.x + lx * ca - ly * sa, this.y + lx * sa + ly * ca];
+  }
+}
+
+/* Vácuo: quem vem logo atrás e alinhado com outro carro pega ar limpo.
+   Sem isso a ultrapassagem depende só de ser mais rápido na curva, e a
+   reta nunca vira oportunidade. */
+const DRAFT_LEN = 155, DRAFT_WIDE = 28;
+
+function updateSlipstream(cars) {
+  for (const c of cars) c.draft = 0;
+  for (let i = 0; i < cars.length; i++) {
+    const a = cars[i];
+    if (a.speed < 90) continue;
+    const ca = Math.cos(a.angle), sa = Math.sin(a.angle);
+    let melhor = 0;
+    for (let j = 0; j < cars.length; j++) {
+      if (i === j) continue;
+      const b = cars[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const frente = dx * ca + dy * sa;
+      if (frente < 14 || frente > DRAFT_LEN) continue;
+      const lado = Math.abs(-dx * sa + dy * ca);
+      if (lado > DRAFT_WIDE) continue;
+      const f = (1 - frente / DRAFT_LEN) * (1 - lado / DRAFT_WIDE);
+      if (f > melhor) melhor = f;
+    }
+    a.draft = melhor;
   }
 }
 

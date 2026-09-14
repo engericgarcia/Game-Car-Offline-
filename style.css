@@ -40,10 +40,13 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none
   text-overflow:ellipsis;white-space:nowrap}
 .hud-id em{display:block;font-style:normal;font-size:8px;letter-spacing:1.3px;color:var(--acc);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wet-chip{flex:0 0 auto;font-size:15px;line-height:1;filter:drop-shadow(0 0 6px rgba(120,180,230,.7))}
 .hud-stats{flex:1;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .stat{padding:2px 7px;text-align:right;border-radius:9px;background:rgba(255,255,255,.05)}
 .stat span{display:block;font-size:7px;letter-spacing:1.2px;color:var(--dim)}
 .stat b{display:block;font-size:13px;font-variant-numeric:tabular-nums;line-height:1.15}
+.stat.invalid{background:rgba(229,69,58,.22)}
+.stat.invalid b{color:#ff8a7d}
 
 /* velocímetro com barra */
 .speedo{position:fixed;left:calc(16px + var(--sal));bottom:calc(126px + var(--sab));
@@ -55,6 +58,11 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none
   background:rgba(255,255,255,.16)}
 .speedo-bar i{display:block;height:100%;width:0;border-radius:3px;
   background:linear-gradient(90deg,#4ade80,#ffd166 62%,#e5453a);transition:width .09s linear}
+.tyre-bar{position:relative;width:104px;height:4px;border-radius:3px;margin-top:7px;
+  background:rgba(255,255,255,.16);overflow:visible}
+.tyre-bar i{display:block;height:100%;width:100%;border-radius:3px;background:#8ad6a0;
+  transition:width .3s linear,background .3s linear}
+.tyre-bar span{position:absolute;left:0;top:6px;font-size:7px;letter-spacing:1.3px;color:var(--dim)}
 body.landscape .speedo{bottom:calc(18px + var(--sab));left:calc(206px + var(--sal))}
 body.landscape .speedo-num b{font-size:34px}
 
@@ -105,7 +113,10 @@ body.landscape #toast{top:calc(150px + var(--sat))}
   border:1px solid rgba(255,255,255,.06);
   box-shadow:inset 0 10px 20px rgba(0,0,0,.75)}
 .pedal-pad{position:absolute;left:0;right:0;top:0;height:calc(100% - 12px);
-  transform-origin:50% 0%;transform:rotateX(40deg) translateZ(10px);
+  transform-origin:50% 0%;
+  /* --press (0..1) vem do JS: o pedal afunda conforme o dedo desce nele */
+  transform:rotateX(calc(40deg - var(--press,0) * 36deg)) translateZ(10px)
+    translateY(calc(var(--press,0) * 13px));
   transition:transform .09s cubic-bezier(.3,.7,.4,1), box-shadow .09s ease-out;
   border-radius:13px;display:flex;flex-direction:column;align-items:center;
   justify-content:space-evenly;padding:12px 9px 8px;
@@ -118,9 +129,8 @@ body.landscape #toast{top:calc(150px + var(--sat))}
 .pedal-pad b{font-size:11px;font-weight:900;letter-spacing:1.2px;color:var(--ped-txt);
   text-shadow:0 1px 2px rgba(0,0,0,.6);margin-top:2px}
 /* pisado: gira para perto do plano, desce e acende */
-.pedal.down .pedal-pad{transform:rotateX(4deg) translateZ(0) translateY(13px);
-  box-shadow:0 3px 7px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12),
-    0 0 22px var(--ped-glow)}
+.pedal.down .pedal-pad{box-shadow:0 3px 7px rgba(0,0,0,.6),
+  inset 0 1px 0 rgba(255,255,255,.12),0 0 22px var(--ped-glow)}
 .pedal.down .pedal-base{box-shadow:inset 0 10px 20px rgba(0,0,0,.85),0 0 14px var(--ped-glow)}
 .pedal-gas{--ped-hi:#33413a;--ped-lo:#18211c;--ped-edge:rgba(74,222,128,.55);
   --ped-glow:rgba(74,222,128,.40);--ped-txt:#bff3d1}

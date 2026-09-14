@@ -5,9 +5,11 @@
    ============================================================ */
 'use strict';
 
+/* refLap = melhor volta possivel (ms) com a equipe de ponta no limite.
+   E a referencia usada para gerar os tempos da classificacao. */
 const TRACK_DEFS = [
   {
-    id: 'monza', scale: 1.5, gp: 'GP da Itália',
+    id: 'monza', scale: 1.5, gp: 'GP da Itália', refLap: 24358,
     name: 'Monza',
     sub: 'Templo da Velocidade · 11 curvas',
     country: '🇮🇹',
@@ -36,7 +38,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'monaco', scale: 1.09, gp: 'GP de Mônaco',
+    id: 'monaco', scale: 1.09, gp: 'GP de Mônaco', refLap: 19925,
     name: 'Mônaco',
     sub: 'Circuito de rua · 19 curvas',
     country: '🇲🇨',
@@ -69,7 +71,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'interlagos', scale: 1.41, gp: 'GP do Brasil',
+    id: 'interlagos', scale: 1.41, gp: 'GP do Brasil', refLap: 19742,
     name: 'Interlagos',
     sub: 'Autódromo José Carlos Pace · 15 curvas',
     country: '🇧🇷',
@@ -98,7 +100,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'spa', scale: 1.98, gp: 'GP da Bélgica',
+    id: 'spa', scale: 1.98, gp: 'GP da Bélgica', refLap: 26883,
     name: 'Spa-Francorchamps',
     sub: 'Ardenas · 19 curvas · a mais longa',
     country: '🇧🇪',
@@ -129,7 +131,60 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'arena', scale: 1.26, gp: 'Corrida dos Campeões',
+    id: 'silverstone', scale: 1.32, gp: 'GP da Inglaterra', refLap: 17458,
+    name: 'Silverstone',
+    sub: 'Retas longas e esses rápidos',
+    country: '🇬🇧',
+    width: 104, runoff: 90, minRadius: 72,
+    grass: '#3d7a3c', asphalt: '#585d64',
+    laps: 3, difficulty: 2,
+    /* reta dos boxes → Copse → Maggotts/Becketts → reta Hangar → Stowe →
+       Vale/Club → Abbey → setor lento da arena → Wellington. */
+    points: [
+      [320, 1120], [318, 1000], [332, 884], [372, 776],
+      [438, 678], [528, 612], [628, 572],                    /* Copse */
+      [710, 524], [772, 464], [834, 430],                    /* Maggotts */
+      [906, 428], [976, 464],                                /* Becketts */
+      [1066, 484], [1176, 488], [1296, 488],                 /* reta Hangar */
+      [1414, 500], [1522, 534], [1612, 592],
+      [1670, 674], [1680, 770],                              /* Stowe */
+      [1642, 858], [1564, 912], [1472, 928],                 /* Vale */
+      [1392, 962], [1332, 1024], [1304, 1104],               /* Club */
+      [1232, 1160], [1130, 1192], [1018, 1204],              /* Abbey */
+      [908, 1204], [822, 1236],
+      [756, 1306], [676, 1338], [592, 1330],                 /* Village */
+      [520, 1292], [494, 1220], [510, 1152],                 /* The Loop */
+      [452, 1116], [372, 1116]                               /* Wellington */
+    ]
+  },
+  {
+    id: 'zandvoort', scale: 1.16, gp: 'GP da Holanda', refLap: 15125,
+    name: 'Zandvoort',
+    sub: 'Dunas, estreito e sem descanso',
+    country: '🇳🇱',
+    width: 80, runoff: 50, minRadius: 54,
+    grass: '#8a7f5e', asphalt: '#5c6068',
+    laps: 4, difficulty: 3,
+    /* Tarzan → Gerlach → Hugenholtz → Scheivlak → Masters → Hans Ernst →
+       Kumho → Arie Luyendyk, de volta para a reta. */
+    points: [
+      [330, 1020], [326, 900], [332, 786], [356, 692],
+      [416, 620], [500, 590], [586, 608],                    /* Tarzan */
+      [640, 668], [634, 744],                                /* Gerlachbocht */
+      [576, 796], [512, 828],                                /* Hugenholtz */
+      [468, 890], [498, 956], [570, 984],
+      [660, 992], [748, 972], [830, 936],                    /* Hunserug */
+      [908, 892], [978, 878], [1036, 912],                   /* Scheivlak */
+      [1090, 962], [1132, 1032],                             /* Masters */
+      [1186, 1102], [1258, 1152], [1330, 1176],              /* Hans Ernst */
+      [1390, 1218], [1396, 1284], [1338, 1330],              /* Kumho */
+      [1248, 1338], [1160, 1318], [1064, 1290],
+      [962, 1278], [858, 1284], [752, 1296],
+      [648, 1288], [546, 1258], [448, 1206], [378, 1134]     /* Arie Luyendyk */
+    ]
+  },
+  {
+    id: 'arena', scale: 1.26, gp: 'Corrida dos Campeões', refLap: 11933,
     name: 'Arena de Drift',
     sub: 'Treino livre · pista larguíssima',
     country: '🏁',

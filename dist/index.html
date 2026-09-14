@@ -54,10 +54,13 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none
   text-overflow:ellipsis;white-space:nowrap}
 .hud-id em{display:block;font-style:normal;font-size:8px;letter-spacing:1.3px;color:var(--acc);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wet-chip{flex:0 0 auto;font-size:15px;line-height:1;filter:drop-shadow(0 0 6px rgba(120,180,230,.7))}
 .hud-stats{flex:1;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .stat{padding:2px 7px;text-align:right;border-radius:9px;background:rgba(255,255,255,.05)}
 .stat span{display:block;font-size:7px;letter-spacing:1.2px;color:var(--dim)}
 .stat b{display:block;font-size:13px;font-variant-numeric:tabular-nums;line-height:1.15}
+.stat.invalid{background:rgba(229,69,58,.22)}
+.stat.invalid b{color:#ff8a7d}
 
 /* velocímetro com barra */
 .speedo{position:fixed;left:calc(16px + var(--sal));bottom:calc(126px + var(--sab));
@@ -69,6 +72,11 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none
   background:rgba(255,255,255,.16)}
 .speedo-bar i{display:block;height:100%;width:0;border-radius:3px;
   background:linear-gradient(90deg,#4ade80,#ffd166 62%,#e5453a);transition:width .09s linear}
+.tyre-bar{position:relative;width:104px;height:4px;border-radius:3px;margin-top:7px;
+  background:rgba(255,255,255,.16);overflow:visible}
+.tyre-bar i{display:block;height:100%;width:100%;border-radius:3px;background:#8ad6a0;
+  transition:width .3s linear,background .3s linear}
+.tyre-bar span{position:absolute;left:0;top:6px;font-size:7px;letter-spacing:1.3px;color:var(--dim)}
 body.landscape .speedo{bottom:calc(18px + var(--sab));left:calc(206px + var(--sal))}
 body.landscape .speedo-num b{font-size:34px}
 
@@ -119,7 +127,10 @@ body.landscape #toast{top:calc(150px + var(--sat))}
   border:1px solid rgba(255,255,255,.06);
   box-shadow:inset 0 10px 20px rgba(0,0,0,.75)}
 .pedal-pad{position:absolute;left:0;right:0;top:0;height:calc(100% - 12px);
-  transform-origin:50% 0%;transform:rotateX(40deg) translateZ(10px);
+  transform-origin:50% 0%;
+  /* --press (0..1) vem do JS: o pedal afunda conforme o dedo desce nele */
+  transform:rotateX(calc(40deg - var(--press,0) * 36deg)) translateZ(10px)
+    translateY(calc(var(--press,0) * 13px));
   transition:transform .09s cubic-bezier(.3,.7,.4,1), box-shadow .09s ease-out;
   border-radius:13px;display:flex;flex-direction:column;align-items:center;
   justify-content:space-evenly;padding:12px 9px 8px;
@@ -132,9 +143,8 @@ body.landscape #toast{top:calc(150px + var(--sat))}
 .pedal-pad b{font-size:11px;font-weight:900;letter-spacing:1.2px;color:var(--ped-txt);
   text-shadow:0 1px 2px rgba(0,0,0,.6);margin-top:2px}
 /* pisado: gira para perto do plano, desce e acende */
-.pedal.down .pedal-pad{transform:rotateX(4deg) translateZ(0) translateY(13px);
-  box-shadow:0 3px 7px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12),
-    0 0 22px var(--ped-glow)}
+.pedal.down .pedal-pad{box-shadow:0 3px 7px rgba(0,0,0,.6),
+  inset 0 1px 0 rgba(255,255,255,.12),0 0 22px var(--ped-glow)}
 .pedal.down .pedal-base{box-shadow:inset 0 10px 20px rgba(0,0,0,.85),0 0 14px var(--ped-glow)}
 .pedal-gas{--ped-hi:#33413a;--ped-lo:#18211c;--ped-edge:rgba(74,222,128,.55);
   --ped-glow:rgba(74,222,128,.40);--ped-txt:#bff3d1}
@@ -288,6 +298,7 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
   <div class="hud-bar">
     <button id="btn-pause" class="icon-btn" aria-label="Pausar">II</button>
     <div class="hud-id"><span id="hud-track">—</span><em id="hud-mode">—</em></div>
+    <div id="hud-wet" class="wet-chip hidden" title="Pista molhada">🌧</div>
     <div class="hud-stats">
       <div class="stat" id="hud-pos-wrap"><span>POS</span><b id="hud-pos">1/6</b></div>
       <div class="stat" id="hud-lap-wrap"><span>VOLTA</span><b id="hud-lap">1/3</b></div>
@@ -300,6 +311,7 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
   <div class="speedo">
     <div class="speedo-num"><b id="hud-speed">0</b><span>km/h</span></div>
     <div class="speedo-bar"><i id="hud-speed-bar"></i></div>
+    <div class="tyre-bar" id="hud-tyre-wrap"><i id="hud-tyre"></i><span>PNEU</span></div>
   </div>
 
   <div id="start-lights" class="hidden">
@@ -389,16 +401,31 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
       <input type="checkbox" id="set-autogas"></label>
     <label class="opt"><span>Ajuda de contra-esterço<em>o carro se endireita sozinho</em></span>
       <input type="checkbox" id="set-assist"></label>
+    <label class="opt"><span>Pedal analógico<em>quanto mais embaixo você pisa, mais acelera</em></span>
+      <input type="checkbox" id="set-analog"></label>
     <label class="opt"><span>Som<em>motor e derrapagem</em></span>
       <input type="checkbox" id="set-sound"></label>
     <label class="opt range"><span>Adversários<em>até 19 carros no grid</em></span>
       <input type="range" id="set-opponents" min="0" max="19" step="1"><b id="set-opponents-val">9</b></label>
+    <label class="opt range"><span>Clima<em>na corrida rápida</em></span>
+      <input type="range" id="set-clima" min="0" max="2" step="1"><b id="set-clima-val">Seco</b></label>
     <label class="opt range"><span>Voltas<em>0 = o padrão de cada pista</em></span>
       <input type="range" id="set-laps" min="0" max="20" step="1"><b id="set-laps-val">padrão</b></label>
     <label class="opt range"><span>Dificuldade<em id="set-difficulty-desc">ritmo dos adversários</em></span>
       <input type="range" id="set-difficulty" min="0" max="4" step="1"><b id="set-difficulty-val">Normal</b></label>
     <button id="btn-reset-records" class="ghost danger">Apagar recordes</button>
     <button class="ghost" data-back>← Voltar</button>
+  </div>
+</section>
+
+<!-- ============ CLASSIFICAÇÃO ============ -->
+<section id="screen-quali" class="screen hidden">
+  <div class="panel wide">
+    <h2>Grid de largada</h2>
+    <p class="tagline" id="quali-sub"></p>
+    <div id="quali-body" class="classif"></div>
+    <button id="btn-quali-race" class="big primary">Largar</button>
+    <button id="btn-quali-back" class="ghost">Ver temporada</button>
   </div>
 </section>
 
@@ -419,6 +446,7 @@ h2{margin:0 0 16px;font-size:20px;text-align:center}
     </div>
     <div id="season-body" class="season-body"></div>
     <button id="btn-season-race" class="big primary">Correr</button>
+    <button id="btn-season-skip" class="ghost">Pular classificação</button>
     <button id="btn-season-quit" class="ghost">Menu principal</button>
     <button id="btn-season-abandon" class="ghost danger">Abandonar temporada</button>
   </div>
@@ -704,9 +732,11 @@ function allEntries(playerTeamId, playerDriverIndex) {
    ============================================================ */
 'use strict';
 
+/* refLap = melhor volta possivel (ms) com a equipe de ponta no limite.
+   E a referencia usada para gerar os tempos da classificacao. */
 const TRACK_DEFS = [
   {
-    id: 'monza', scale: 1.5, gp: 'GP da Itália',
+    id: 'monza', scale: 1.5, gp: 'GP da Itália', refLap: 24358,
     name: 'Monza',
     sub: 'Templo da Velocidade · 11 curvas',
     country: '🇮🇹',
@@ -735,7 +765,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'monaco', scale: 1.09, gp: 'GP de Mônaco',
+    id: 'monaco', scale: 1.09, gp: 'GP de Mônaco', refLap: 19925,
     name: 'Mônaco',
     sub: 'Circuito de rua · 19 curvas',
     country: '🇲🇨',
@@ -768,7 +798,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'interlagos', scale: 1.41, gp: 'GP do Brasil',
+    id: 'interlagos', scale: 1.41, gp: 'GP do Brasil', refLap: 19742,
     name: 'Interlagos',
     sub: 'Autódromo José Carlos Pace · 15 curvas',
     country: '🇧🇷',
@@ -797,7 +827,7 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'spa', scale: 1.98, gp: 'GP da Bélgica',
+    id: 'spa', scale: 1.98, gp: 'GP da Bélgica', refLap: 26883,
     name: 'Spa-Francorchamps',
     sub: 'Ardenas · 19 curvas · a mais longa',
     country: '🇧🇪',
@@ -828,7 +858,60 @@ const TRACK_DEFS = [
     ]
   },
   {
-    id: 'arena', scale: 1.26, gp: 'Corrida dos Campeões',
+    id: 'silverstone', scale: 1.32, gp: 'GP da Inglaterra', refLap: 17458,
+    name: 'Silverstone',
+    sub: 'Retas longas e esses rápidos',
+    country: '🇬🇧',
+    width: 104, runoff: 90, minRadius: 72,
+    grass: '#3d7a3c', asphalt: '#585d64',
+    laps: 3, difficulty: 2,
+    /* reta dos boxes → Copse → Maggotts/Becketts → reta Hangar → Stowe →
+       Vale/Club → Abbey → setor lento da arena → Wellington. */
+    points: [
+      [320, 1120], [318, 1000], [332, 884], [372, 776],
+      [438, 678], [528, 612], [628, 572],                    /* Copse */
+      [710, 524], [772, 464], [834, 430],                    /* Maggotts */
+      [906, 428], [976, 464],                                /* Becketts */
+      [1066, 484], [1176, 488], [1296, 488],                 /* reta Hangar */
+      [1414, 500], [1522, 534], [1612, 592],
+      [1670, 674], [1680, 770],                              /* Stowe */
+      [1642, 858], [1564, 912], [1472, 928],                 /* Vale */
+      [1392, 962], [1332, 1024], [1304, 1104],               /* Club */
+      [1232, 1160], [1130, 1192], [1018, 1204],              /* Abbey */
+      [908, 1204], [822, 1236],
+      [756, 1306], [676, 1338], [592, 1330],                 /* Village */
+      [520, 1292], [494, 1220], [510, 1152],                 /* The Loop */
+      [452, 1116], [372, 1116]                               /* Wellington */
+    ]
+  },
+  {
+    id: 'zandvoort', scale: 1.16, gp: 'GP da Holanda', refLap: 15125,
+    name: 'Zandvoort',
+    sub: 'Dunas, estreito e sem descanso',
+    country: '🇳🇱',
+    width: 80, runoff: 50, minRadius: 54,
+    grass: '#8a7f5e', asphalt: '#5c6068',
+    laps: 4, difficulty: 3,
+    /* Tarzan → Gerlach → Hugenholtz → Scheivlak → Masters → Hans Ernst →
+       Kumho → Arie Luyendyk, de volta para a reta. */
+    points: [
+      [330, 1020], [326, 900], [332, 786], [356, 692],
+      [416, 620], [500, 590], [586, 608],                    /* Tarzan */
+      [640, 668], [634, 744],                                /* Gerlachbocht */
+      [576, 796], [512, 828],                                /* Hugenholtz */
+      [468, 890], [498, 956], [570, 984],
+      [660, 992], [748, 972], [830, 936],                    /* Hunserug */
+      [908, 892], [978, 878], [1036, 912],                   /* Scheivlak */
+      [1090, 962], [1132, 1032],                             /* Masters */
+      [1186, 1102], [1258, 1152], [1330, 1176],              /* Hans Ernst */
+      [1390, 1218], [1396, 1284], [1338, 1330],              /* Kumho */
+      [1248, 1338], [1160, 1318], [1064, 1290],
+      [962, 1278], [858, 1284], [752, 1296],
+      [648, 1288], [546, 1258], [448, 1206], [378, 1134]     /* Arie Luyendyk */
+    ]
+  },
+  {
+    id: 'arena', scale: 1.26, gp: 'Corrida dos Campeões', refLap: 11933,
     name: 'Arena de Drift',
     sub: 'Treino livre · pista larguíssima',
     country: '🏁',
@@ -995,6 +1078,11 @@ class Car {
     this.slip = 0; this.speed = 0; this.offTrack = false;
     this.driftScore = 0; this.driftCombo = 1; this.driftTimer = 0; this.driftBank = 0;
     this.hitTimer = 0; this.name = spec.name; this.halfPassed = true;
+    this.draft = 0;          /* 0..1, quanto vácuo está pegando agora */
+    this.lapClean = true;    /* a volta atual vale como tempo? */
+    this.tyre = 1;           /* 1 = pneu novo, 0.35 = acabado */
+    this.wet = 0;            /* 0 = pista seca, 1 = encharcada */
+    this.outTimer = 0;
     this.wheelTrail = [null, null];
     this.assist = 0.55;
   }
@@ -1012,6 +1100,7 @@ class Car {
     const track = this.track;
     const sp = this.spec;
     const ca = Math.cos(this.angle), sa = Math.sin(this.angle);
+    const speed0 = Math.hypot(this.vx, this.vy);
 
     let fwd = this.vx * ca + this.vy * sa;
     let lat = -this.vx * sa + this.vy * ca;
@@ -1021,21 +1110,40 @@ class Car {
     this.offTrack = !surf.onTrack;
     this.onKerb = surf.kerb;
 
+    /* limites de pista: passar da zebra por mais de um instante anula a
+       volta. Sem isso dá para cortar curva e bater recorde sem merecer. */
+    if (surf.dist > track.half + 14) {
+      this.outTimer += dt;
+      if (this.outTimer > 0.15) this.lapClean = false;
+    } else {
+      this.outTimer = 0;
+    }
+
     const off = this.offTrack;
-    const power = off ? 0.48 : 1;
-    const drag = off ? 2.9 : 1.06 + (fwd > 0 ? fwd / sp.top * 0.5 : 0);
+    const power = (off ? 0.48 : 1) * (1 - this.wet * 0.10);
+    let drag = off ? 2.9 : 1.06 + (fwd > 0 ? fwd / sp.top * 0.5 : 0);
+    /* no vácuo o carro da frente abre o ar: menos arrasto, mais ponta */
+    if (!off && this.draft > 0) drag *= 1 - 0.17 * this.draft;
 
     /* motor e freio */
     if (inp.throttle > 0) fwd += sp.engine * power * inp.throttle * dt;
     if (inp.brake > 0) {
-      if (fwd > 2) fwd -= sp.brake * inp.brake * dt;
+      if (fwd > 2) fwd -= sp.brake * (1 - this.wet * 0.24) * inp.brake * dt;
       else fwd = Math.max(fwd - 260 * inp.brake * dt, -130);
     }
     fwd -= fwd * drag * dt;
     if (inp.handbrake && fwd > 0) fwd -= fwd * 0.9 * dt;
 
+    /* Pneu: gasta com o tempo, e MUITO mais atravessado. É o custo do
+       drift - render pontos custa borracha, e borracha gasta custa volta. */
+    const gasto = (0.0022 + Math.abs(this.slip) * 0.011 +
+      (speed0 / sp.top) * 0.0014) * dt;
+    this.tyre = Math.max(0.35, this.tyre - gasto);
+    const velho = 1 - this.tyre;
+
     /* aderência lateral: quanto mais perto de 1, mais escorrega */
     let g = inp.handbrake ? sp.driftGrip : sp.grip;
+    g = Math.min(0.988, g + velho * 0.045 + this.wet * 0.034);
     if (off) g = Math.min(0.972, g + 0.075);
     if (this.onKerb) g = Math.min(0.975, g + 0.03);
     /* acelerar forte durante a derrapagem mantém o carro atravessado */
@@ -1053,7 +1161,8 @@ class Car {
     const hiDamp = 1 - 0.40 * Math.min(1, speed / sp.top);
     const dir = fwd >= -1 ? 1 : -1;
     this.steerAngle += (inp.steer - this.steerAngle) * Math.min(1, dt * 10);
-    this.angle += this.steerAngle * sp.turn * resp * hiDamp * dir * dt;
+    this.angle += this.steerAngle * sp.turn * (0.88 + 0.12 * this.tyre) *
+      resp * hiDamp * dir * dt;
 
     /* ângulo de derrapagem */
     this.slip = (speed > 6) ? wrapAngle(Math.atan2(this.vy, this.vx) - this.angle) : 0;
@@ -1114,12 +1223,14 @@ class Car {
           const t = now - this.lapStart;
           if (t > 3000) {
             this.lastLap = t;
+            this.lastLapClean = this.lapClean;
             this.lapTimes.push(t);
-            if (this.bestLap == null || t < this.bestLap) this.bestLap = t;
+            if (this.lapClean && (this.bestLap == null || t < this.bestLap)) this.bestLap = t;
           }
         }
         this.lap++;
         this.lapStart = now;
+        this.lapClean = true;
         this.halfPassed = false;
       }
     } else if (a < n * 0.28 && b > n * 0.72) {
@@ -1136,6 +1247,33 @@ class Car {
     const lx = front ? WHEEL_FX : WHEEL_RX;
     const ly = (right ? 1 : -1) * (front ? WHEEL_FY : WHEEL_RY);
     return [this.x + lx * ca - ly * sa, this.y + lx * sa + ly * ca];
+  }
+}
+
+/* Vácuo: quem vem logo atrás e alinhado com outro carro pega ar limpo.
+   Sem isso a ultrapassagem depende só de ser mais rápido na curva, e a
+   reta nunca vira oportunidade. */
+const DRAFT_LEN = 155, DRAFT_WIDE = 28;
+
+function updateSlipstream(cars) {
+  for (const c of cars) c.draft = 0;
+  for (let i = 0; i < cars.length; i++) {
+    const a = cars[i];
+    if (a.speed < 90) continue;
+    const ca = Math.cos(a.angle), sa = Math.sin(a.angle);
+    let melhor = 0;
+    for (let j = 0; j < cars.length; j++) {
+      if (i === j) continue;
+      const b = cars[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const frente = dx * ca + dy * sa;
+      if (frente < 14 || frente > DRAFT_LEN) continue;
+      const lado = Math.abs(-dx * sa + dy * ca);
+      if (lado > DRAFT_WIDE) continue;
+      const f = (1 - frente / DRAFT_LEN) * (1 - lado / DRAFT_WIDE);
+      if (f > melhor) melhor = f;
+    }
+    a.draft = melhor;
   }
 }
 
@@ -1194,6 +1332,27 @@ class AIDriver {
     this.hbTimer = 0;
     this.stuck = 0;
     this.reverse = 0;
+    /* Erros. Sem eles o pelotão se ordena por ritmo na primeira volta e
+       fica assim até o fim: nenhuma corrida tem história. */
+    this.erroEm = 20 + Math.random() * 90;
+    this.erro = null;
+    this.erroT = 0;
+  }
+
+  sorteiaErro(dt, speed) {
+    if (this.erro) {
+      this.erroT -= dt;
+      if (this.erroT <= 0) this.erro = null;
+      return;
+    }
+    this.erroEm -= dt;
+    if (this.erroEm > 0 || speed < 130) return;
+    const r = Math.random();
+    if (r < 0.45) { this.erro = 'trava'; this.erroT = 0.55 + Math.random() * 0.3; }
+    else if (r < 0.85) { this.erro = 'abre'; this.erroT = 1.0 + Math.random() * 0.7; }
+    else { this.erro = 'roda'; this.erroT = 0.4 + Math.random() * 0.3; }
+    /* piloto melhor erra menos */
+    this.erroEm = (85 + Math.random() * 110) * (this.skill / 0.9);
   }
 
   think(dt, t) {
@@ -1211,6 +1370,8 @@ class AIDriver {
       return { steer: clamp(-rd * 2, -1, 1), throttle: 0, brake: 1, handbrake: false };
     }
 
+    this.sorteiaErro(dt, speed);
+
     /* ponto de mira à frente, proporcional à velocidade */
     const aheadUnits = (off ? 30 : 46) + speed * 0.38;
     const ai = (car.idx + Math.round(aheadUnits / track.spacing)) % n;
@@ -1221,8 +1382,10 @@ class AIDriver {
     const k = ap.curv;
     const apexPull = clamp(Math.abs(k) * track.length / 8, 0, 1);
     const wob = Math.sin((t * 0.0007) + this.noise) * 0.07;
-    const offset = off ? 0
+    let offset = off ? 0
       : (-Math.sign(k) * apexPull * 0.30 + this.lane * (1 - apexPull * 0.6) + wob) * track.half;
+    /* "abre demais": sai da trajetória para o lado de fora da curva */
+    if (this.erro === 'abre') offset += Math.sign(k) * track.half * 0.62;
     const tx = ap.x + ap.nx * offset;
     const ty = ap.y + ap.ny * offset;
 
@@ -1247,11 +1410,13 @@ class AIDriver {
        raio = v / w, com w máximo = turn * (1 - 0.4 * v/top).
        Resolvendo para v dá a velocidade máxima de passagem na curva. */
     const yawLimit = car.spec.turn / (worst + 0.4 * car.spec.turn / car.spec.top);
-    let target = 0.90 * this.skill * yawLimit;
+    let target = 0.90 * this.skill * yawLimit * (1 - car.wet * 0.13);
     target = Math.min(target, car.spec.top * this.skill);
     if (off) target = Math.min(target, 190);
     /* muito atravessado em relação ao alvo: reduz até se alinhar */
     if (Math.abs(diff) > 0.8) target = Math.min(target, 130);
+
+    if (this.erro === 'abre') target *= 1.13;   /* chega rápido demais */
 
     let throttle = 0, brake = 0;
     if (speed > target * 1.05) brake = clamp((speed - target) / 95, 0.2, 0.9);
@@ -1264,9 +1429,19 @@ class AIDriver {
       Math.abs(k) * track.length > 34) {
       this.hbTimer = 0.45;
     }
-    const handbrake = this.hbTimer > 0.2;
+    let handbrake = this.hbTimer > 0.2;
+    let esterco = steer;
 
-    return { steer: steer, throttle: throttle, brake: brake, handbrake: handbrake };
+    /* trava roda na freada: perde direção por um instante */
+    if (this.erro === 'trava') {
+      brake = 1; throttle = 0; esterco = steer * 0.3;
+    }
+    /* perde a traseira */
+    if (this.erro === 'roda') {
+      handbrake = true; esterco = clamp(steer * 1.7, -1, 1); throttle = Math.min(throttle, 0.5);
+    }
+
+    return { steer: esterco, throttle: throttle, brake: brake, handbrake: handbrake };
   }
 }
 
@@ -1352,10 +1527,11 @@ const Sound = {
   },
 
   /* chamado a cada quadro com o estado do carro do jogador */
-  updateEngine: function (rpm, load, slip, playing) {
+  updateEngine: function (rpm, load, slip, playing, tom) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    const freq = 48 + rpm * 300;
+    const t0 = tom || 1;
+    const freq = (48 + rpm * 300) * t0;
     this.engine.o1.frequency.setTargetAtTime(freq, t, 0.05);
     this.engine.o2.frequency.setTargetAtTime(freq * 0.5, t, 0.05);
     this.engine.filter.frequency.setTargetAtTime(500 + rpm * 2600 + load * 700, t, 0.06);
@@ -1767,6 +1943,7 @@ function makeMarksLayer(track) {
 
 function paintTireMarks(marks, car) {
   const intensity = clamp(Math.abs(car.slip) * 1.3 - 0.14, 0, 1);
+  if (car.wet) { car.wheelTrail[0] = car.wheelTrail[1] = null; return; }
   if (intensity <= 0.02 || car.speed < 45 || car.offTrack) {
     car.wheelTrail[0] = car.wheelTrail[1] = null; return;
   }
@@ -1787,6 +1964,33 @@ function paintTireMarks(marks, car) {
     }
     car.wheelTrail[w] = pos;
   }
+}
+
+/* ---------- chuva ----------
+   Riscos desenhados em coordenadas de tela (não do mundo): a chuva cai
+   na frente da câmera, não no asfalto. */
+const RAIN = [];
+function drawRain(ctx, cw, ch, dt, força) {
+  const alvo = Math.round(170 * força);
+  while (RAIN.length < alvo) {
+    RAIN.push({ x: Math.random() * cw, y: Math.random() * ch,
+      v: 900 + Math.random() * 700, l: 12 + Math.random() * 18 });
+  }
+  if (RAIN.length > alvo) RAIN.length = alvo;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(190,215,235,0.34)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (const g of RAIN) {
+    g.y += g.v * dt;
+    g.x += g.v * dt * 0.24;
+    if (g.y > ch) { g.y = -20; g.x = Math.random() * cw; }
+    if (g.x > cw) g.x = -10;
+    ctx.moveTo(g.x, g.y);
+    ctx.lineTo(g.x - g.l * 0.24, g.y - g.l);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 /* ---------- partículas de fumaça / poeira ---------- */
@@ -1821,6 +2025,13 @@ class Particles {
 function emitCarParticles(parts, car, dt) {
   const slip = Math.abs(car.slip);
   if (car.speed < 40) return;
+  /* água levantada pelos pneus: aparece com velocidade, não com derrapagem */
+  if (car.wet && Math.random() < 0.85) {
+    const w = car.wheelPos(false, Math.random() > 0.5);
+    parts.spawn(w[0], w[1], -car.vx * 0.22 + (Math.random() - 0.5) * 30,
+      -car.vy * 0.22 + (Math.random() - 0.5) * 30,
+      3 + Math.random() * 4, 0.45 + Math.random() * 0.3, '#cfe0ee');
+  }
   if (slip > 0.20 && !car.offTrack) {
     if (Math.random() < clamp(slip * 2.2, 0, 1)) {
       const w = car.wheelPos(false, Math.random() > 0.5);
@@ -2043,7 +2254,8 @@ function drawMinimap(ctx, track, cars, x, y, size) {
 
 const Season = {
   POINTS: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
-  CALENDAR: ['monza', 'spa', 'monaco', 'interlagos', 'arena'],
+  CALENDAR: ['monza', 'spa', 'silverstone', 'monaco',
+    'zandvoort', 'interlagos', 'arena'],
   data: null,
 
   load: function () {
@@ -2073,6 +2285,49 @@ const Season = {
   },
 
   active: function () { return !!this.data; },
+
+  /* ---- classificação ----
+     O jogador anda a volta; os adversários têm o tempo gerado a partir da
+     melhor volta possível da pista, dividida pelo ritmo da dupla
+     nível-de-dificuldade × força-da-equipe. */
+  qualiFeita: function () { return !!(this.data && this.data.grid); },
+
+  tempoAdversario: function (entry, def, difficulty) {
+    const ref = def.refLap || 25000;
+    const ritmo = DIFFICULTIES[clamp(difficulty | 0, 0, DIFFICULTIES.length - 1)].base * entry.team.tier;
+    const ruido = 1 + (Math.random() - 0.5) * 0.028;
+    return ref / ritmo * ruido;
+  },
+
+  /* tempoJogador em ms, ou null se ele não marcou volta válida */
+  aplicaQuali: function (tempoJogador, def, difficulty) {
+    const eu = this.playerId();
+    const linhas = this.entries().map(e => ({
+      entry: e,
+      tempo: e.id === eu ? tempoJogador : this.tempoAdversario(e, def, difficulty)
+    }));
+    linhas.sort((a, b) => {
+      if (a.tempo == null) return 1;
+      if (b.tempo == null) return -1;
+      return a.tempo - b.tempo;
+    });
+    this.data.grid = linhas.map(l => l.entry.id);
+    this.data.quali = linhas.map(l => ({ id: l.entry.id, tempo: l.tempo }));
+    this.save();
+    return linhas;
+  },
+
+  /* grid da corrida: o da classificação se houver, senão o campeonato */
+  gridDaCorrida: function () {
+    if (!this.data.grid) return this.gridOrder();
+    const porId = {};
+    for (const e of this.entries()) porId[e.id] = e;
+    return this.data.grid.map(id => porId[id]).filter(Boolean);
+  },
+
+  limpaQuali: function () {
+    delete this.data.grid; delete this.data.quali; this.save();
+  },
   finished: function () { return this.data && this.data.round >= this.CALENDAR.length; },
   total: function () { return this.CALENDAR.length; },
 
@@ -2108,6 +2363,8 @@ const Season = {
       playerPos: orderIds.indexOf(this.playerId()) + 1
     });
     this.data.round++;
+    delete this.data.grid;
+    delete this.data.quali;
     this.save();
     return gained;
   },
@@ -2143,7 +2400,7 @@ const Season = {
 
 /* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
    version.json do servidor para descobrir se o aparelho está atrasado. */
-const APP_VERSION = 17;
+const APP_VERSION = 30;
 
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
@@ -2155,7 +2412,11 @@ const Game = {
   cam: { x: 0, y: 0, zoom: 1 },
   clock: 0, countdown: 0, raceTime: 0, driftTimeLeft: 0,
   totalLaps: 3, finishOrder: [],
-  settings: { autoGas: false, assist: true, sound: true, opponents: 9, difficulty: 1, laps: 0 },
+  settings: {
+    autoGas: false, assist: true, sound: true, analog: true,
+    opponents: 9, difficulty: 1, laps: 0, clima: 0   /* 0 seco, 1 chuva, 2 sorteio */
+  },
+  wet: 0,
   records: {},
   teamPickFor: 'quick',      /* de onde a tela de equipes foi aberta */
   seasonTab: 'cal',
@@ -2221,7 +2482,8 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
 /* ---------------- controles ---------------- */
 const keys = {};
-const touch = { left: false, right: false, gas: false, brake: false, drift: false };
+/* gas e brake são 0..1 (pedal analógico); os outros, 0 ou 1 */
+const touch = { left: 0, right: 0, gas: 0, brake: 0, drift: 0 };
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -2240,19 +2502,33 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
    Agora cada dedo é rastreado pelo pointerId e o estado dos botões é
    recalculado a partir de quem está realmente na tela. Soltar fora do
    botão, arrastar de um botão para outro e apertar rápido: tudo resolve. */
-const pointerKey = new Map();     /* pointerId -> botão que aquele dedo segura */
+const pointerKey = new Map();     /* pointerId -> {key, level} */
 
 function controlAt(x, y) {
   const node = document.elementFromPoint(x, y);
   const ctl = node && node.closest ? node.closest('[data-btn]') : null;
-  return (ctl && !ctl.classList.contains('hidden')) ? ctl.dataset.btn : null;
+  if (!ctl || ctl.classList.contains('hidden')) return null;
+  /* nos pedais, o quanto o dedo desceu na placa vira quanto de gás/freio */
+  let level = 1;
+  if (ctl.classList.contains('pedal') && Game.settings.analog) {
+    const r = ctl.getBoundingClientRect();
+    level = 0.5 + 0.5 * clamp((y - r.top) / r.height, 0, 1);
+  }
+  return { key: ctl.dataset.btn, level: level };
 }
 
 function refreshTouch() {
-  for (const k in touch) touch[k] = false;
-  for (const k of pointerKey.values()) if (k) touch[k] = true;
+  for (const k in touch) touch[k] = 0;
+  for (const p of pointerKey.values()) {
+    if (p && p.level > touch[p.key]) touch[p.key] = p.level;
+  }
   document.querySelectorAll('[data-btn]').forEach(el => {
-    el.classList.toggle('down', !!touch[el.dataset.btn]);
+    const v = touch[el.dataset.btn];
+    el.classList.toggle('down', v > 0);
+    /* o pedal afunda proporcionalmente ao quanto foi pisado */
+    if (el.classList.contains('pedal')) {
+      el.style.setProperty('--press', v > 0 ? ((v - 0.5) / 0.5).toFixed(2) : '0');
+    }
   });
 }
 
@@ -2266,21 +2542,22 @@ function bindTouch() {
   const pad = document.getElementById('touch');
 
   pad.addEventListener('pointerdown', e => {
-    const k = controlAt(e.clientX, e.clientY);
-    if (!k) return;
+    const c = controlAt(e.clientX, e.clientY);
+    if (!c) return;
     e.preventDefault();
-    pointerKey.set(e.pointerId, k);
+    pointerKey.set(e.pointerId, c);
     refreshTouch();
-    if (navigator.vibrate) navigator.vibrate(k === 'brake' ? 14 : 8);
+    if (navigator.vibrate) navigator.vibrate(c.key === 'brake' ? 14 : 8);
     Sound.init();
   });
 
   /* arrastar o polegar de ◀ para ▶ sem levantar troca a direção */
   window.addEventListener('pointermove', e => {
     if (!pointerKey.has(e.pointerId)) return;
-    const k = controlAt(e.clientX, e.clientY);
-    if (k !== pointerKey.get(e.pointerId)) {
-      pointerKey.set(e.pointerId, k);
+    const c = controlAt(e.clientX, e.clientY);
+    const a = pointerKey.get(e.pointerId);
+    if (!a || !c || a.key !== c.key || Math.abs(a.level - c.level) > 0.02) {
+      pointerKey.set(e.pointerId, c);
       refreshTouch();
     }
   });
@@ -2299,8 +2576,8 @@ function playerInput() {
   let steer = 0;
   if (keys.ArrowLeft || keys.KeyA || touch.left) steer -= 1;
   if (keys.ArrowRight || keys.KeyD || touch.right) steer += 1;
-  let gas = (keys.ArrowUp || keys.KeyW || touch.gas) ? 1 : 0;
-  let brake = (keys.ArrowDown || keys.KeyS || touch.brake) ? 1 : 0;
+  let gas = (keys.ArrowUp || keys.KeyW) ? 1 : touch.gas;
+  let brake = (keys.ArrowDown || keys.KeyS) ? 1 : touch.brake;
   const hand = (keys.Space || keys.ShiftLeft || touch.drift) ? true : false;
   if (s.autoGas && !brake) gas = 1;
   if (Game.state !== 'racing') { gas = Game.state === 'countdown' ? gas * 0 : 0; brake = 0; }
@@ -2318,7 +2595,8 @@ function prepareTrack(def) {
 
 /* Quem está no grid, e em que ordem. */
 function buildEntries() {
-  if (Game.mode === 'story') return Season.gridOrder();
+  if (Game.mode === 'story') return Season.gridDaCorrida();
+  if (Game.mode === 'quali') return [makeEntry(teamById(Game.teamId), 0, true)];
   const team = teamById(Game.teamId);
   const player = makeEntry(team, 0, true);
   if (Game.mode !== 'race') return [player];
@@ -2341,15 +2619,27 @@ function startRace() {
   if (!Game.track || Game.track.def.id !== def.id) prepareTrack(def);
   else { Game.marks = makeMarksLayer(Game.track); Game.parts = new Particles(); }
 
+  /* clima: no modo história cada etapa tem o seu, sempre o mesmo para
+     aquela rodada (nada de mudar quando você repete a corrida) */
+  if (Game.mode === 'story' || Game.mode === 'quali') {
+    const r = Season.data ? Season.data.round : 0;
+    Game.wet = ((r * 7 + def.id.length * 3) % 5 === 0) ? 1 : 0;
+  } else {
+    Game.wet = Game.settings.clima === 1 ? 1
+      : Game.settings.clima === 2 ? (Math.random() < 0.3 ? 1 : 0) : 0;
+  }
+
   const entries = buildEntries();
   const g = makeGrid(Game.track, entries, Game.settings.difficulty);
   Game.cars = g.cars; Game.ais = g.ais;
   Game.player = g.cars.find(c => c.isPlayer);
+  for (const c of Game.cars) c.wet = Game.wet;
   Game.player.assist = Game.settings.assist ? 0.6 : 0.12;
   for (const c of Game.cars) { if (!c.isPlayer) c.assist = 0.5; }
 
-  Game.totalLaps = (Game.mode === 'race' || Game.mode === 'story')
-    ? (Game.mode === 'story' ? def.laps : (Game.settings.laps || def.laps)) : 99;
+  Game.totalLaps = Game.mode === 'story' ? def.laps
+    : Game.mode === 'race' ? (Game.settings.laps || def.laps)
+      : Game.mode === 'quali' ? 3 : 99;
   Game.finishOrder = [];
   Game.raceTime = 0;
   Game.driftTimeLeft = 90;
@@ -2359,6 +2649,7 @@ function startRace() {
   Game.cam.x = Game.player.x; Game.cam.y = Game.player.y;
   Game.cam.zoom = baseZoom();
   Game.toast.life = 0; Game.driftPop.life = 0;
+  ghostReset();
 
   showScreen(null);
   document.body.classList.add('playing');
@@ -2429,8 +2720,13 @@ function simulate(dt, now) {
   p.brakeGlow = inp.brake > 0.1 ? 0.9 : 0;
   const wasLap = p.lap;
   p.update(dt, inp, G.raceTime);
-  if (p.lap !== wasLap && p.lastLap) onLapDone(p);
+  ghostSample(dt);
+  if (p.lap !== wasLap) {
+    ghostLapDone(p);
+    if (p.lastLap) onLapDone(p);
+  }
 
+  updateSlipstream(G.cars);
   resolveCarCollisions(G.cars, G.track.n);
 
   /* efeitos */
@@ -2439,6 +2735,10 @@ function simulate(dt, now) {
     emitCarParticles(G.parts, c, dt);
   }
   G.parts.update(dt);
+
+  if (G.state === 'racing' && G.mode === 'quali' && p.lap > G.totalLaps) {
+    endQuali();
+  }
 
   /* fim de corrida */
   if (G.state === 'racing' && (G.mode === 'race' || G.mode === 'story')) {
@@ -2455,6 +2755,11 @@ function simulate(dt, now) {
 
 function onLapDone(p) {
   const r = rec(Game.trackDef.id);
+  if (p.lastLap && !p.lastLapClean) {
+    showToast('Volta anulada · saiu da pista', 2.2);
+    Sound.blip(220, 0.2, 'sawtooth', 0.14);
+    return;
+  }
   if (p.lastLap && (r.best == null || p.lastLap < r.best)) {
     r.best = p.lastLap; saveRecords();
     showToast('NOVO RECORDE! ' + fmtTime(p.lastLap), 2.6);
@@ -2491,6 +2796,85 @@ function endRace() {
   setTimeout(() => showResults(newDrift), 700);
 }
 
+/* ---------------- carro-fantasma (contra-relógio) ----------------
+   Grava a melhor volta como uma lista de posições a cada 40 ms e a
+   reproduz por cima. Andar contra o próprio recorde mostra ONDE se
+   perde tempo, o que um número no canto da tela não mostra. */
+const GHOST_STEP = 40;
+
+function ghostKey(t) { return 'gc_ghost_' + t.id; }
+
+function loadGhost(def) {
+  try {
+    const raw = localStorage.getItem(ghostKey(def));
+    if (!raw) return null;
+    const g = JSON.parse(raw);
+    return (g && g.p && g.p.length > 8) ? g : null;
+  } catch (e) { return null; }
+}
+
+function saveGhost(def, tempo, pontos) {
+  try {
+    localStorage.setItem(ghostKey(def), JSON.stringify({ t: tempo, p: pontos }));
+  } catch (e) { }
+}
+
+function ghostReset() {
+  Game.ghost = (Game.mode === 'time') ? loadGhost(Game.trackDef) : null;
+  Game.ghostRec = [];
+  Game.ghostAcc = 0;
+}
+
+function ghostSample(dt) {
+  const G = Game;
+  if (G.mode !== 'time' || G.state !== 'racing') return;
+  const p = G.player;
+  G.ghostAcc += dt * 1000;
+  while (G.ghostAcc >= GHOST_STEP) {
+    G.ghostAcc -= GHOST_STEP;
+    if (G.ghostRec.length < 4000) {
+      G.ghostRec.push(Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10,
+        Math.round(p.angle * 1000) / 1000);
+    }
+  }
+}
+
+/* chamado quando o jogador fecha uma volta no contra-relógio */
+function ghostLapDone(p) {
+  if (Game.mode !== 'time') return;
+  if (p.lastLapClean && p.lastLap && (!Game.ghost || p.lastLap < Game.ghost.t)) {
+    saveGhost(Game.trackDef, p.lastLap, Game.ghostRec.slice());
+    Game.ghost = loadGhost(Game.trackDef);
+    showToast('Fantasma atualizado · ' + fmtTime(p.lastLap), 2.2);
+  }
+  Game.ghostRec = [];
+  Game.ghostAcc = 0;
+}
+
+/* onde o fantasma estava neste ponto da volta */
+function ghostAt(ms) {
+  const g = Game.ghost;
+  if (!g) return null;
+  const i = Math.floor(ms / GHOST_STEP) * 3;
+  if (i < 0 || i + 2 >= g.p.length) return null;
+  return { x: g.p[i], y: g.p[i + 1], angle: g.p[i + 2] };
+}
+
+function drawGhost(ctx) {
+  const G = Game;
+  if (G.mode !== 'time' || !G.ghost || !G.player.lapStart) return;
+  const pos = ghostAt(G.raceTime - G.player.lapStart);
+  if (!pos) return;
+  ctx.save();
+  ctx.globalAlpha = 0.42;
+  drawCar(ctx, {
+    x: pos.x, y: pos.y, angle: pos.angle, steerAngle: 0,
+    hitTimer: 0, brakeGlow: 0,
+    spec: { color: '#9fb4c9', accent: '#dfe8f2', wing: '#4a5666' }
+  });
+  ctx.restore();
+}
+
 /* ---------------- desenho ---------------- */
 function render(now, dt) {
   const G = Game, p = G.player;
@@ -2525,11 +2909,20 @@ function render(now, dt) {
   ctx.drawImage(G.marks.canvas, b.x, b.y, b.w, b.h);
   G.parts.draw(ctx);
 
+  drawGhost(ctx);
   for (const c of G.cars) if (!c.isPlayer) drawCar(ctx, c);
   drawCar(ctx, p);
   if (G.state === 'countdown') drawPlayerArrow(ctx, p, now);
 
   ctx.restore();
+
+  /* pista molhada: escurece e esfria a cena, depois a chuva por cima */
+  if (G.wet) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = 'rgba(26,42,60,0.30)';
+    ctx.fillRect(0, 0, cw, ch);
+    drawRain(ctx, cw, ch, dt || 0.016, 1);
+  }
 
   /* minimapa */
   const ms = clamp(Math.min(cw, ch) * 0.19, 70, 130);
@@ -2574,9 +2967,12 @@ let hudBottom = 56;   /* onde o painel do topo termina, em px de CSS */
 
 function updateHudStatic() {
   el('hud-track').textContent = Game.trackDef.name;
-  el('hud-mode').textContent = Game.mode === 'story'
-    ? (Game.trackDef.gp || 'TEMPORADA').toUpperCase()
-    : (Game.mode === 'race' ? 'CORRIDA' : (Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT'));
+  el('hud-wet').classList.toggle('hidden', !Game.wet);
+  el('hud-mode').textContent =
+    Game.mode === 'story' ? (Game.trackDef.gp || 'TEMPORADA').toUpperCase() :
+      Game.mode === 'quali' ? 'CLASSIFICAÇÃO' :
+        Game.mode === 'race' ? 'CORRIDA' :
+          Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT';
   const disputa = Game.mode === 'race' || Game.mode === 'story';
   el('hud-pos-wrap').classList.toggle('hidden', !disputa);
   el('hud-lap-wrap').classList.toggle('hidden', Game.mode === 'drift');
@@ -2624,7 +3020,14 @@ function hudTick(dt) {
   const r = rec(G.trackDef.id);
   el('hud-speed').textContent = Math.round(p.speed * 0.62);
   el('hud-speed-bar').style.width = Math.round(clamp(p.speed / p.spec.top, 0, 1) * 100) + '%';
-  el('hud-lap').textContent = Math.min(p.lap + 1, G.totalLaps) + (G.mode === 'race' ? '/' + G.totalLaps : '');
+  const pneu = (p.tyre - 0.35) / 0.65;
+  const tb = el('hud-tyre');
+  tb.style.width = Math.round(clamp(pneu, 0, 1) * 100) + '%';
+  tb.style.background = pneu > 0.55 ? '#8ad6a0' : (pneu > 0.28 ? '#ffd166' : '#e5453a');
+  el('hud-lap').textContent = Math.min(p.lap + 1, G.totalLaps) +
+    (G.mode === 'race' || G.mode === 'story' || G.mode === 'quali' ? '/' + G.totalLaps : '');
+  /* volta anulada por limite de pista: o tempo fica vermelho */
+  el('hud-time').parentElement.classList.toggle('invalid', !p.lapClean && G.mode !== 'drift');
   el('hud-time').textContent = G.mode === 'drift'
     ? Math.max(0, G.driftTimeLeft).toFixed(1) + 's'
     : fmtTime(p.lapStart ? (G.raceTime - p.lapStart) : G.raceTime);
@@ -2804,24 +3207,64 @@ function renderSeason() {
   }
 
   const btn = el('btn-season-race');
+  const skip = el('btn-season-skip');
   if (acabou) {
     btn.textContent = 'Nova temporada';
+    skip.classList.add('hidden');
   } else {
     const t = Season.currentTrack();
-    btn.textContent = 'Correr · ' + t.gp;
+    const feita = Season.qualiFeita();
+    btn.textContent = (feita ? 'Largada · ' : 'Classificação · ') + t.gp;
+    skip.classList.toggle('hidden', feita);
   }
 }
 
 function runSeasonRace() {
-  if (Season.finished()) {
-    Season.clear();
-    openStory();
-    return;
-  }
-  Game.mode = 'story';
+  if (Season.finished()) { Season.clear(); openStory(); return; }
   Game.trackDef = Season.currentTrack();
   Game.teamId = Season.data.teamId;
+  /* primeiro a classificação, depois a corrida com o grid que ela definiu */
+  Game.mode = Season.qualiFeita() ? 'story' : 'quali';
   startRace();
+}
+
+/* Fim da sessão de classificação: o tempo do jogador entra na lista junto
+   com os tempos gerados dos adversários e isso vira o grid. */
+function endQuali() {
+  Game.state = 'over';
+  const linhas = Season.aplicaQuali(Game.player.bestLap, Game.trackDef, Game.settings.difficulty);
+  Game.qualiRows = linhas;
+  setTimeout(() => showQuali(), 700);
+}
+
+/* quem não quer andar a classificação recebe um tempo de meio de grid */
+function skipQuali() {
+  const def = Season.currentTrack();
+  const eq = teamById(Season.data.teamId);
+  const base = DIFFICULTIES[clamp(Game.settings.difficulty | 0, 0, 4)].base;
+  const t = (def.refLap || 25000) / (base * eq.tier) * 1.012;
+  Game.trackDef = def;
+  Game.qualiRows = Season.aplicaQuali(t, def, Game.settings.difficulty);
+  showQuali();
+}
+
+function showQuali() {
+  const linhas = Game.qualiRows || [];
+  const eu = Season.playerId();
+  const lider = linhas.length && linhas[0].tempo ? linhas[0].tempo : null;
+  el('quali-sub').textContent = Game.trackDef.country + ' ' + Game.trackDef.gp;
+  el('quali-body').innerHTML = linhas.map((l, i) => {
+    const gap = (l.tempo == null) ? 'sem tempo'
+      : (i === 0 ? fmtTime(l.tempo) : '+' + ((l.tempo - lider) / 1000).toFixed(3));
+    return '<div class="stand' + (l.entry.id === eu ? ' me' : '') + '">' +
+      '<span class="pos">' + (i + 1) + '</span>' +
+      '<i class="dot" style="background:' + l.entry.team.color + '"></i>' +
+      '<span class="who">' + l.entry.realName +
+      (l.entry.id === eu ? ' (você)' : '') + ' <em>' + l.entry.team.short + '</em></span>' +
+      '<span class="pts">' + gap + '</span></div>';
+  }).join('');
+  document.body.classList.remove('playing');
+  showScreen('screen-quali');
 }
 
 /* ---------------- menus ---------------- */
@@ -2940,10 +3383,13 @@ function buildSettings() {
   el('set-autogas').checked = s.autoGas;
   el('set-assist').checked = s.assist;
   el('set-sound').checked = s.sound;
+  el('set-analog').checked = s.analog;
   el('set-opponents').value = s.opponents;
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
   setDifficultyLabel(s.difficulty);
+  el('set-clima').value = s.clima;
+  el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][s.clima];
   el('set-laps').value = s.laps;
   el('set-laps-val').textContent = s.laps ? s.laps : 'padrão';
 }
@@ -2978,6 +3424,9 @@ function wireUI() {
   };
 
   el('btn-season-race').onclick = runSeasonRace;
+  el('btn-season-skip').onclick = skipQuali;
+  el('btn-quali-race').onclick = () => { Game.mode = 'story'; startRace(); };
+  el('btn-quali-back').onclick = () => { document.body.classList.remove('playing'); showSeason(); };
   el('btn-season-quit').onclick = quitToMenu;
   el('btn-season-abandon').onclick = () => {
     if (el('btn-season-abandon').dataset.armed) {
@@ -2996,6 +3445,7 @@ function wireUI() {
     Game.settings.assist = e.target.checked; saveSettings();
     if (Game.player) Game.player.assist = e.target.checked ? 0.6 : 0.12;
   };
+  el('set-analog').onchange = e => { Game.settings.analog = e.target.checked; saveSettings(); };
   el('set-sound').onchange = e => { Game.settings.sound = e.target.checked; Sound.setMuted(!e.target.checked); saveSettings(); };
   el('set-opponents').oninput = e => {
     Game.settings.opponents = +e.target.value;
@@ -3004,6 +3454,10 @@ function wireUI() {
   el('set-difficulty').oninput = e => {
     Game.settings.difficulty = +e.target.value;
     setDifficultyLabel(+e.target.value); saveSettings();
+  };
+  el('set-clima').oninput = e => {
+    Game.settings.clima = +e.target.value;
+    el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][+e.target.value]; saveSettings();
   };
   el('set-laps').oninput = e => {
     Game.settings.laps = +e.target.value;
@@ -3032,8 +3486,11 @@ setInterval(() => {
   const p = Game.player;
   const playing = (Game.state === 'racing' || Game.state === 'countdown');
   if (!p) { Sound.updateEngine(0, 0, 0, false); return; }
-  const rpm = clamp(p.speed / p.spec.top, 0, 1) * 0.75 + (playerInput().throttle * 0.25);
-  Sound.updateEngine(rpm, playerInput().throttle, Math.abs(p.slip) * (p.speed > 60 ? 1 : 0), playing);
+  const inp = playerInput();
+  const rpm = clamp(p.speed / p.spec.top, 0, 1) * 0.75 + inp.throttle * 0.25;
+  /* cada motor tem seu tom: dá para reconhecer a equipe de ouvido */
+  const tom = p.entry && p.entry.team ? 0.82 + (p.entry.team.engine - 550) / 210 : 1;
+  Sound.updateEngine(rpm, inp.throttle, Math.abs(p.slip) * (p.speed > 60 ? 1 : 0), playing, tom);
 }, 60);
 
 /* ---------------- início ---------------- */

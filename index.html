@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=30">
 </head>
 <body>
 
@@ -25,6 +25,7 @@
   <div class="hud-bar">
     <button id="btn-pause" class="icon-btn" aria-label="Pausar">II</button>
     <div class="hud-id"><span id="hud-track">—</span><em id="hud-mode">—</em></div>
+    <div id="hud-wet" class="wet-chip hidden" title="Pista molhada">🌧</div>
     <div class="hud-stats">
       <div class="stat" id="hud-pos-wrap"><span>POS</span><b id="hud-pos">1/6</b></div>
       <div class="stat" id="hud-lap-wrap"><span>VOLTA</span><b id="hud-lap">1/3</b></div>
@@ -37,6 +38,7 @@
   <div class="speedo">
     <div class="speedo-num"><b id="hud-speed">0</b><span>km/h</span></div>
     <div class="speedo-bar"><i id="hud-speed-bar"></i></div>
+    <div class="tyre-bar" id="hud-tyre-wrap"><i id="hud-tyre"></i><span>PNEU</span></div>
   </div>
 
   <div id="start-lights" class="hidden">
@@ -126,16 +128,31 @@
       <input type="checkbox" id="set-autogas"></label>
     <label class="opt"><span>Ajuda de contra-esterço<em>o carro se endireita sozinho</em></span>
       <input type="checkbox" id="set-assist"></label>
+    <label class="opt"><span>Pedal analógico<em>quanto mais embaixo você pisa, mais acelera</em></span>
+      <input type="checkbox" id="set-analog"></label>
     <label class="opt"><span>Som<em>motor e derrapagem</em></span>
       <input type="checkbox" id="set-sound"></label>
     <label class="opt range"><span>Adversários<em>até 19 carros no grid</em></span>
       <input type="range" id="set-opponents" min="0" max="19" step="1"><b id="set-opponents-val">9</b></label>
+    <label class="opt range"><span>Clima<em>na corrida rápida</em></span>
+      <input type="range" id="set-clima" min="0" max="2" step="1"><b id="set-clima-val">Seco</b></label>
     <label class="opt range"><span>Voltas<em>0 = o padrão de cada pista</em></span>
       <input type="range" id="set-laps" min="0" max="20" step="1"><b id="set-laps-val">padrão</b></label>
     <label class="opt range"><span>Dificuldade<em id="set-difficulty-desc">ritmo dos adversários</em></span>
       <input type="range" id="set-difficulty" min="0" max="4" step="1"><b id="set-difficulty-val">Normal</b></label>
     <button id="btn-reset-records" class="ghost danger">Apagar recordes</button>
     <button class="ghost" data-back>← Voltar</button>
+  </div>
+</section>
+
+<!-- ============ CLASSIFICAÇÃO ============ -->
+<section id="screen-quali" class="screen hidden">
+  <div class="panel wide">
+    <h2>Grid de largada</h2>
+    <p class="tagline" id="quali-sub"></p>
+    <div id="quali-body" class="classif"></div>
+    <button id="btn-quali-race" class="big primary">Largar</button>
+    <button id="btn-quali-back" class="ghost">Ver temporada</button>
   </div>
 </section>
 
@@ -156,6 +173,7 @@
     </div>
     <div id="season-body" class="season-body"></div>
     <button id="btn-season-race" class="big primary">Correr</button>
+    <button id="btn-season-skip" class="ghost">Pular classificação</button>
     <button id="btn-season-quit" class="ghost">Menu principal</button>
     <button id="btn-season-abandon" class="ghost danger">Abandonar temporada</button>
   </div>
@@ -183,14 +201,14 @@
   </div>
 </section>
 
-<script src="js/utils.js?v=17"></script>
-<script src="js/teams.js?v=17"></script>
-<script src="js/tracks.js?v=17"></script>
-<script src="js/car.js?v=17"></script>
-<script src="js/ai.js?v=17"></script>
-<script src="js/audio.js?v=17"></script>
-<script src="js/render.js?v=17"></script>
-<script src="js/season.js?v=17"></script>
-<script src="js/game.js?v=17"></script>
+<script src="js/utils.js?v=30"></script>
+<script src="js/teams.js?v=30"></script>
+<script src="js/tracks.js?v=30"></script>
+<script src="js/car.js?v=30"></script>
+<script src="js/ai.js?v=30"></script>
+<script src="js/audio.js?v=30"></script>
+<script src="js/render.js?v=30"></script>
+<script src="js/season.js?v=30"></script>
+<script src="js/game.js?v=30"></script>
 </body>
 </html>

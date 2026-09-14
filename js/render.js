@@ -373,6 +373,7 @@ function makeMarksLayer(track) {
 
 function paintTireMarks(marks, car) {
   const intensity = clamp(Math.abs(car.slip) * 1.3 - 0.14, 0, 1);
+  if (car.wet) { car.wheelTrail[0] = car.wheelTrail[1] = null; return; }
   if (intensity <= 0.02 || car.speed < 45 || car.offTrack) {
     car.wheelTrail[0] = car.wheelTrail[1] = null; return;
   }
@@ -393,6 +394,33 @@ function paintTireMarks(marks, car) {
     }
     car.wheelTrail[w] = pos;
   }
+}
+
+/* ---------- chuva ----------
+   Riscos desenhados em coordenadas de tela (não do mundo): a chuva cai
+   na frente da câmera, não no asfalto. */
+const RAIN = [];
+function drawRain(ctx, cw, ch, dt, força) {
+  const alvo = Math.round(170 * força);
+  while (RAIN.length < alvo) {
+    RAIN.push({ x: Math.random() * cw, y: Math.random() * ch,
+      v: 900 + Math.random() * 700, l: 12 + Math.random() * 18 });
+  }
+  if (RAIN.length > alvo) RAIN.length = alvo;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(190,215,235,0.34)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (const g of RAIN) {
+    g.y += g.v * dt;
+    g.x += g.v * dt * 0.24;
+    if (g.y > ch) { g.y = -20; g.x = Math.random() * cw; }
+    if (g.x > cw) g.x = -10;
+    ctx.moveTo(g.x, g.y);
+    ctx.lineTo(g.x - g.l * 0.24, g.y - g.l);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 /* ---------- partículas de fumaça / poeira ---------- */
@@ -427,6 +455,13 @@ class Particles {
 function emitCarParticles(parts, car, dt) {
   const slip = Math.abs(car.slip);
   if (car.speed < 40) return;
+  /* água levantada pelos pneus: aparece com velocidade, não com derrapagem */
+  if (car.wet && Math.random() < 0.85) {
+    const w = car.wheelPos(false, Math.random() > 0.5);
+    parts.spawn(w[0], w[1], -car.vx * 0.22 + (Math.random() - 0.5) * 30,
+      -car.vy * 0.22 + (Math.random() - 0.5) * 30,
+      3 + Math.random() * 4, 0.45 + Math.random() * 0.3, '#cfe0ee');
+  }
   if (slip > 0.20 && !car.offTrack) {
     if (Math.random() < clamp(slip * 2.2, 0, 1)) {
       const w = car.wheelPos(false, Math.random() > 0.5);

@@ -5,7 +5,7 @@
 
 /* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
    version.json do servidor para descobrir se o aparelho está atrasado. */
-const APP_VERSION = 17;
+const APP_VERSION = 30;
 
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
@@ -17,7 +17,11 @@ const Game = {
   cam: { x: 0, y: 0, zoom: 1 },
   clock: 0, countdown: 0, raceTime: 0, driftTimeLeft: 0,
   totalLaps: 3, finishOrder: [],
-  settings: { autoGas: false, assist: true, sound: true, opponents: 9, difficulty: 1, laps: 0 },
+  settings: {
+    autoGas: false, assist: true, sound: true, analog: true,
+    opponents: 9, difficulty: 1, laps: 0, clima: 0   /* 0 seco, 1 chuva, 2 sorteio */
+  },
+  wet: 0,
   records: {},
   teamPickFor: 'quick',      /* de onde a tela de equipes foi aberta */
   seasonTab: 'cal',
@@ -83,7 +87,8 @@ window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
 /* ---------------- controles ---------------- */
 const keys = {};
-const touch = { left: false, right: false, gas: false, brake: false, drift: false };
+/* gas e brake são 0..1 (pedal analógico); os outros, 0 ou 1 */
+const touch = { left: 0, right: 0, gas: 0, brake: 0, drift: 0 };
 
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -102,19 +107,33 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
    Agora cada dedo é rastreado pelo pointerId e o estado dos botões é
    recalculado a partir de quem está realmente na tela. Soltar fora do
    botão, arrastar de um botão para outro e apertar rápido: tudo resolve. */
-const pointerKey = new Map();     /* pointerId -> botão que aquele dedo segura */
+const pointerKey = new Map();     /* pointerId -> {key, level} */
 
 function controlAt(x, y) {
   const node = document.elementFromPoint(x, y);
   const ctl = node && node.closest ? node.closest('[data-btn]') : null;
-  return (ctl && !ctl.classList.contains('hidden')) ? ctl.dataset.btn : null;
+  if (!ctl || ctl.classList.contains('hidden')) return null;
+  /* nos pedais, o quanto o dedo desceu na placa vira quanto de gás/freio */
+  let level = 1;
+  if (ctl.classList.contains('pedal') && Game.settings.analog) {
+    const r = ctl.getBoundingClientRect();
+    level = 0.5 + 0.5 * clamp((y - r.top) / r.height, 0, 1);
+  }
+  return { key: ctl.dataset.btn, level: level };
 }
 
 function refreshTouch() {
-  for (const k in touch) touch[k] = false;
-  for (const k of pointerKey.values()) if (k) touch[k] = true;
+  for (const k in touch) touch[k] = 0;
+  for (const p of pointerKey.values()) {
+    if (p && p.level > touch[p.key]) touch[p.key] = p.level;
+  }
   document.querySelectorAll('[data-btn]').forEach(el => {
-    el.classList.toggle('down', !!touch[el.dataset.btn]);
+    const v = touch[el.dataset.btn];
+    el.classList.toggle('down', v > 0);
+    /* o pedal afunda proporcionalmente ao quanto foi pisado */
+    if (el.classList.contains('pedal')) {
+      el.style.setProperty('--press', v > 0 ? ((v - 0.5) / 0.5).toFixed(2) : '0');
+    }
   });
 }
 
@@ -128,21 +147,22 @@ function bindTouch() {
   const pad = document.getElementById('touch');
 
   pad.addEventListener('pointerdown', e => {
-    const k = controlAt(e.clientX, e.clientY);
-    if (!k) return;
+    const c = controlAt(e.clientX, e.clientY);
+    if (!c) return;
     e.preventDefault();
-    pointerKey.set(e.pointerId, k);
+    pointerKey.set(e.pointerId, c);
     refreshTouch();
-    if (navigator.vibrate) navigator.vibrate(k === 'brake' ? 14 : 8);
+    if (navigator.vibrate) navigator.vibrate(c.key === 'brake' ? 14 : 8);
     Sound.init();
   });
 
   /* arrastar o polegar de ◀ para ▶ sem levantar troca a direção */
   window.addEventListener('pointermove', e => {
     if (!pointerKey.has(e.pointerId)) return;
-    const k = controlAt(e.clientX, e.clientY);
-    if (k !== pointerKey.get(e.pointerId)) {
-      pointerKey.set(e.pointerId, k);
+    const c = controlAt(e.clientX, e.clientY);
+    const a = pointerKey.get(e.pointerId);
+    if (!a || !c || a.key !== c.key || Math.abs(a.level - c.level) > 0.02) {
+      pointerKey.set(e.pointerId, c);
       refreshTouch();
     }
   });
@@ -161,8 +181,8 @@ function playerInput() {
   let steer = 0;
   if (keys.ArrowLeft || keys.KeyA || touch.left) steer -= 1;
   if (keys.ArrowRight || keys.KeyD || touch.right) steer += 1;
-  let gas = (keys.ArrowUp || keys.KeyW || touch.gas) ? 1 : 0;
-  let brake = (keys.ArrowDown || keys.KeyS || touch.brake) ? 1 : 0;
+  let gas = (keys.ArrowUp || keys.KeyW) ? 1 : touch.gas;
+  let brake = (keys.ArrowDown || keys.KeyS) ? 1 : touch.brake;
   const hand = (keys.Space || keys.ShiftLeft || touch.drift) ? true : false;
   if (s.autoGas && !brake) gas = 1;
   if (Game.state !== 'racing') { gas = Game.state === 'countdown' ? gas * 0 : 0; brake = 0; }
@@ -180,7 +200,8 @@ function prepareTrack(def) {
 
 /* Quem está no grid, e em que ordem. */
 function buildEntries() {
-  if (Game.mode === 'story') return Season.gridOrder();
+  if (Game.mode === 'story') return Season.gridDaCorrida();
+  if (Game.mode === 'quali') return [makeEntry(teamById(Game.teamId), 0, true)];
   const team = teamById(Game.teamId);
   const player = makeEntry(team, 0, true);
   if (Game.mode !== 'race') return [player];
@@ -203,15 +224,27 @@ function startRace() {
   if (!Game.track || Game.track.def.id !== def.id) prepareTrack(def);
   else { Game.marks = makeMarksLayer(Game.track); Game.parts = new Particles(); }
 
+  /* clima: no modo história cada etapa tem o seu, sempre o mesmo para
+     aquela rodada (nada de mudar quando você repete a corrida) */
+  if (Game.mode === 'story' || Game.mode === 'quali') {
+    const r = Season.data ? Season.data.round : 0;
+    Game.wet = ((r * 7 + def.id.length * 3) % 5 === 0) ? 1 : 0;
+  } else {
+    Game.wet = Game.settings.clima === 1 ? 1
+      : Game.settings.clima === 2 ? (Math.random() < 0.3 ? 1 : 0) : 0;
+  }
+
   const entries = buildEntries();
   const g = makeGrid(Game.track, entries, Game.settings.difficulty);
   Game.cars = g.cars; Game.ais = g.ais;
   Game.player = g.cars.find(c => c.isPlayer);
+  for (const c of Game.cars) c.wet = Game.wet;
   Game.player.assist = Game.settings.assist ? 0.6 : 0.12;
   for (const c of Game.cars) { if (!c.isPlayer) c.assist = 0.5; }
 
-  Game.totalLaps = (Game.mode === 'race' || Game.mode === 'story')
-    ? (Game.mode === 'story' ? def.laps : (Game.settings.laps || def.laps)) : 99;
+  Game.totalLaps = Game.mode === 'story' ? def.laps
+    : Game.mode === 'race' ? (Game.settings.laps || def.laps)
+      : Game.mode === 'quali' ? 3 : 99;
   Game.finishOrder = [];
   Game.raceTime = 0;
   Game.driftTimeLeft = 90;
@@ -221,6 +254,7 @@ function startRace() {
   Game.cam.x = Game.player.x; Game.cam.y = Game.player.y;
   Game.cam.zoom = baseZoom();
   Game.toast.life = 0; Game.driftPop.life = 0;
+  ghostReset();
 
   showScreen(null);
   document.body.classList.add('playing');
@@ -291,8 +325,13 @@ function simulate(dt, now) {
   p.brakeGlow = inp.brake > 0.1 ? 0.9 : 0;
   const wasLap = p.lap;
   p.update(dt, inp, G.raceTime);
-  if (p.lap !== wasLap && p.lastLap) onLapDone(p);
+  ghostSample(dt);
+  if (p.lap !== wasLap) {
+    ghostLapDone(p);
+    if (p.lastLap) onLapDone(p);
+  }
 
+  updateSlipstream(G.cars);
   resolveCarCollisions(G.cars, G.track.n);
 
   /* efeitos */
@@ -301,6 +340,10 @@ function simulate(dt, now) {
     emitCarParticles(G.parts, c, dt);
   }
   G.parts.update(dt);
+
+  if (G.state === 'racing' && G.mode === 'quali' && p.lap > G.totalLaps) {
+    endQuali();
+  }
 
   /* fim de corrida */
   if (G.state === 'racing' && (G.mode === 'race' || G.mode === 'story')) {
@@ -317,6 +360,11 @@ function simulate(dt, now) {
 
 function onLapDone(p) {
   const r = rec(Game.trackDef.id);
+  if (p.lastLap && !p.lastLapClean) {
+    showToast('Volta anulada · saiu da pista', 2.2);
+    Sound.blip(220, 0.2, 'sawtooth', 0.14);
+    return;
+  }
   if (p.lastLap && (r.best == null || p.lastLap < r.best)) {
     r.best = p.lastLap; saveRecords();
     showToast('NOVO RECORDE! ' + fmtTime(p.lastLap), 2.6);
@@ -353,6 +401,85 @@ function endRace() {
   setTimeout(() => showResults(newDrift), 700);
 }
 
+/* ---------------- carro-fantasma (contra-relógio) ----------------
+   Grava a melhor volta como uma lista de posições a cada 40 ms e a
+   reproduz por cima. Andar contra o próprio recorde mostra ONDE se
+   perde tempo, o que um número no canto da tela não mostra. */
+const GHOST_STEP = 40;
+
+function ghostKey(t) { return 'gc_ghost_' + t.id; }
+
+function loadGhost(def) {
+  try {
+    const raw = localStorage.getItem(ghostKey(def));
+    if (!raw) return null;
+    const g = JSON.parse(raw);
+    return (g && g.p && g.p.length > 8) ? g : null;
+  } catch (e) { return null; }
+}
+
+function saveGhost(def, tempo, pontos) {
+  try {
+    localStorage.setItem(ghostKey(def), JSON.stringify({ t: tempo, p: pontos }));
+  } catch (e) { }
+}
+
+function ghostReset() {
+  Game.ghost = (Game.mode === 'time') ? loadGhost(Game.trackDef) : null;
+  Game.ghostRec = [];
+  Game.ghostAcc = 0;
+}
+
+function ghostSample(dt) {
+  const G = Game;
+  if (G.mode !== 'time' || G.state !== 'racing') return;
+  const p = G.player;
+  G.ghostAcc += dt * 1000;
+  while (G.ghostAcc >= GHOST_STEP) {
+    G.ghostAcc -= GHOST_STEP;
+    if (G.ghostRec.length < 4000) {
+      G.ghostRec.push(Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10,
+        Math.round(p.angle * 1000) / 1000);
+    }
+  }
+}
+
+/* chamado quando o jogador fecha uma volta no contra-relógio */
+function ghostLapDone(p) {
+  if (Game.mode !== 'time') return;
+  if (p.lastLapClean && p.lastLap && (!Game.ghost || p.lastLap < Game.ghost.t)) {
+    saveGhost(Game.trackDef, p.lastLap, Game.ghostRec.slice());
+    Game.ghost = loadGhost(Game.trackDef);
+    showToast('Fantasma atualizado · ' + fmtTime(p.lastLap), 2.2);
+  }
+  Game.ghostRec = [];
+  Game.ghostAcc = 0;
+}
+
+/* onde o fantasma estava neste ponto da volta */
+function ghostAt(ms) {
+  const g = Game.ghost;
+  if (!g) return null;
+  const i = Math.floor(ms / GHOST_STEP) * 3;
+  if (i < 0 || i + 2 >= g.p.length) return null;
+  return { x: g.p[i], y: g.p[i + 1], angle: g.p[i + 2] };
+}
+
+function drawGhost(ctx) {
+  const G = Game;
+  if (G.mode !== 'time' || !G.ghost || !G.player.lapStart) return;
+  const pos = ghostAt(G.raceTime - G.player.lapStart);
+  if (!pos) return;
+  ctx.save();
+  ctx.globalAlpha = 0.42;
+  drawCar(ctx, {
+    x: pos.x, y: pos.y, angle: pos.angle, steerAngle: 0,
+    hitTimer: 0, brakeGlow: 0,
+    spec: { color: '#9fb4c9', accent: '#dfe8f2', wing: '#4a5666' }
+  });
+  ctx.restore();
+}
+
 /* ---------------- desenho ---------------- */
 function render(now, dt) {
   const G = Game, p = G.player;
@@ -387,11 +514,20 @@ function render(now, dt) {
   ctx.drawImage(G.marks.canvas, b.x, b.y, b.w, b.h);
   G.parts.draw(ctx);
 
+  drawGhost(ctx);
   for (const c of G.cars) if (!c.isPlayer) drawCar(ctx, c);
   drawCar(ctx, p);
   if (G.state === 'countdown') drawPlayerArrow(ctx, p, now);
 
   ctx.restore();
+
+  /* pista molhada: escurece e esfria a cena, depois a chuva por cima */
+  if (G.wet) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = 'rgba(26,42,60,0.30)';
+    ctx.fillRect(0, 0, cw, ch);
+    drawRain(ctx, cw, ch, dt || 0.016, 1);
+  }
 
   /* minimapa */
   const ms = clamp(Math.min(cw, ch) * 0.19, 70, 130);
@@ -436,9 +572,12 @@ let hudBottom = 56;   /* onde o painel do topo termina, em px de CSS */
 
 function updateHudStatic() {
   el('hud-track').textContent = Game.trackDef.name;
-  el('hud-mode').textContent = Game.mode === 'story'
-    ? (Game.trackDef.gp || 'TEMPORADA').toUpperCase()
-    : (Game.mode === 'race' ? 'CORRIDA' : (Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT'));
+  el('hud-wet').classList.toggle('hidden', !Game.wet);
+  el('hud-mode').textContent =
+    Game.mode === 'story' ? (Game.trackDef.gp || 'TEMPORADA').toUpperCase() :
+      Game.mode === 'quali' ? 'CLASSIFICAÇÃO' :
+        Game.mode === 'race' ? 'CORRIDA' :
+          Game.mode === 'time' ? 'CONTRA-RELÓGIO' : 'DRIFT';
   const disputa = Game.mode === 'race' || Game.mode === 'story';
   el('hud-pos-wrap').classList.toggle('hidden', !disputa);
   el('hud-lap-wrap').classList.toggle('hidden', Game.mode === 'drift');
@@ -486,7 +625,14 @@ function hudTick(dt) {
   const r = rec(G.trackDef.id);
   el('hud-speed').textContent = Math.round(p.speed * 0.62);
   el('hud-speed-bar').style.width = Math.round(clamp(p.speed / p.spec.top, 0, 1) * 100) + '%';
-  el('hud-lap').textContent = Math.min(p.lap + 1, G.totalLaps) + (G.mode === 'race' ? '/' + G.totalLaps : '');
+  const pneu = (p.tyre - 0.35) / 0.65;
+  const tb = el('hud-tyre');
+  tb.style.width = Math.round(clamp(pneu, 0, 1) * 100) + '%';
+  tb.style.background = pneu > 0.55 ? '#8ad6a0' : (pneu > 0.28 ? '#ffd166' : '#e5453a');
+  el('hud-lap').textContent = Math.min(p.lap + 1, G.totalLaps) +
+    (G.mode === 'race' || G.mode === 'story' || G.mode === 'quali' ? '/' + G.totalLaps : '');
+  /* volta anulada por limite de pista: o tempo fica vermelho */
+  el('hud-time').parentElement.classList.toggle('invalid', !p.lapClean && G.mode !== 'drift');
   el('hud-time').textContent = G.mode === 'drift'
     ? Math.max(0, G.driftTimeLeft).toFixed(1) + 's'
     : fmtTime(p.lapStart ? (G.raceTime - p.lapStart) : G.raceTime);
@@ -666,24 +812,64 @@ function renderSeason() {
   }
 
   const btn = el('btn-season-race');
+  const skip = el('btn-season-skip');
   if (acabou) {
     btn.textContent = 'Nova temporada';
+    skip.classList.add('hidden');
   } else {
     const t = Season.currentTrack();
-    btn.textContent = 'Correr · ' + t.gp;
+    const feita = Season.qualiFeita();
+    btn.textContent = (feita ? 'Largada · ' : 'Classificação · ') + t.gp;
+    skip.classList.toggle('hidden', feita);
   }
 }
 
 function runSeasonRace() {
-  if (Season.finished()) {
-    Season.clear();
-    openStory();
-    return;
-  }
-  Game.mode = 'story';
+  if (Season.finished()) { Season.clear(); openStory(); return; }
   Game.trackDef = Season.currentTrack();
   Game.teamId = Season.data.teamId;
+  /* primeiro a classificação, depois a corrida com o grid que ela definiu */
+  Game.mode = Season.qualiFeita() ? 'story' : 'quali';
   startRace();
+}
+
+/* Fim da sessão de classificação: o tempo do jogador entra na lista junto
+   com os tempos gerados dos adversários e isso vira o grid. */
+function endQuali() {
+  Game.state = 'over';
+  const linhas = Season.aplicaQuali(Game.player.bestLap, Game.trackDef, Game.settings.difficulty);
+  Game.qualiRows = linhas;
+  setTimeout(() => showQuali(), 700);
+}
+
+/* quem não quer andar a classificação recebe um tempo de meio de grid */
+function skipQuali() {
+  const def = Season.currentTrack();
+  const eq = teamById(Season.data.teamId);
+  const base = DIFFICULTIES[clamp(Game.settings.difficulty | 0, 0, 4)].base;
+  const t = (def.refLap || 25000) / (base * eq.tier) * 1.012;
+  Game.trackDef = def;
+  Game.qualiRows = Season.aplicaQuali(t, def, Game.settings.difficulty);
+  showQuali();
+}
+
+function showQuali() {
+  const linhas = Game.qualiRows || [];
+  const eu = Season.playerId();
+  const lider = linhas.length && linhas[0].tempo ? linhas[0].tempo : null;
+  el('quali-sub').textContent = Game.trackDef.country + ' ' + Game.trackDef.gp;
+  el('quali-body').innerHTML = linhas.map((l, i) => {
+    const gap = (l.tempo == null) ? 'sem tempo'
+      : (i === 0 ? fmtTime(l.tempo) : '+' + ((l.tempo - lider) / 1000).toFixed(3));
+    return '<div class="stand' + (l.entry.id === eu ? ' me' : '') + '">' +
+      '<span class="pos">' + (i + 1) + '</span>' +
+      '<i class="dot" style="background:' + l.entry.team.color + '"></i>' +
+      '<span class="who">' + l.entry.realName +
+      (l.entry.id === eu ? ' (você)' : '') + ' <em>' + l.entry.team.short + '</em></span>' +
+      '<span class="pts">' + gap + '</span></div>';
+  }).join('');
+  document.body.classList.remove('playing');
+  showScreen('screen-quali');
 }
 
 /* ---------------- menus ---------------- */
@@ -802,10 +988,13 @@ function buildSettings() {
   el('set-autogas').checked = s.autoGas;
   el('set-assist').checked = s.assist;
   el('set-sound').checked = s.sound;
+  el('set-analog').checked = s.analog;
   el('set-opponents').value = s.opponents;
   el('set-opponents-val').textContent = s.opponents;
   el('set-difficulty').value = s.difficulty;
   setDifficultyLabel(s.difficulty);
+  el('set-clima').value = s.clima;
+  el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][s.clima];
   el('set-laps').value = s.laps;
   el('set-laps-val').textContent = s.laps ? s.laps : 'padrão';
 }
@@ -840,6 +1029,9 @@ function wireUI() {
   };
 
   el('btn-season-race').onclick = runSeasonRace;
+  el('btn-season-skip').onclick = skipQuali;
+  el('btn-quali-race').onclick = () => { Game.mode = 'story'; startRace(); };
+  el('btn-quali-back').onclick = () => { document.body.classList.remove('playing'); showSeason(); };
   el('btn-season-quit').onclick = quitToMenu;
   el('btn-season-abandon').onclick = () => {
     if (el('btn-season-abandon').dataset.armed) {
@@ -858,6 +1050,7 @@ function wireUI() {
     Game.settings.assist = e.target.checked; saveSettings();
     if (Game.player) Game.player.assist = e.target.checked ? 0.6 : 0.12;
   };
+  el('set-analog').onchange = e => { Game.settings.analog = e.target.checked; saveSettings(); };
   el('set-sound').onchange = e => { Game.settings.sound = e.target.checked; Sound.setMuted(!e.target.checked); saveSettings(); };
   el('set-opponents').oninput = e => {
     Game.settings.opponents = +e.target.value;
@@ -866,6 +1059,10 @@ function wireUI() {
   el('set-difficulty').oninput = e => {
     Game.settings.difficulty = +e.target.value;
     setDifficultyLabel(+e.target.value); saveSettings();
+  };
+  el('set-clima').oninput = e => {
+    Game.settings.clima = +e.target.value;
+    el('set-clima-val').textContent = ['Seco', 'Chuva', 'Sorteio'][+e.target.value]; saveSettings();
   };
   el('set-laps').oninput = e => {
     Game.settings.laps = +e.target.value;
@@ -894,8 +1091,11 @@ setInterval(() => {
   const p = Game.player;
   const playing = (Game.state === 'racing' || Game.state === 'countdown');
   if (!p) { Sound.updateEngine(0, 0, 0, false); return; }
-  const rpm = clamp(p.speed / p.spec.top, 0, 1) * 0.75 + (playerInput().throttle * 0.25);
-  Sound.updateEngine(rpm, playerInput().throttle, Math.abs(p.slip) * (p.speed > 60 ? 1 : 0), playing);
+  const inp = playerInput();
+  const rpm = clamp(p.speed / p.spec.top, 0, 1) * 0.75 + inp.throttle * 0.25;
+  /* cada motor tem seu tom: dá para reconhecer a equipe de ouvido */
+  const tom = p.entry && p.entry.team ? 0.82 + (p.entry.team.engine - 550) / 210 : 1;
+  Sound.updateEngine(rpm, inp.throttle, Math.abs(p.slip) * (p.speed > 60 ? 1 : 0), playing, tom);
 }, 60);
 
 /* ---------------- início ---------------- */
