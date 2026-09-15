@@ -5,7 +5,7 @@
 
 /* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
    version.json do servidor para descobrir se o aparelho está atrasado. */
-const APP_VERSION = 44;
+const APP_VERSION = 47;
 
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
@@ -427,7 +427,9 @@ function endRace() {
    perde tempo, o que um número no canto da tela não mostra. */
 const GHOST_STEP = 40;
 
-function ghostKey(t) { return 'gc_ghost_' + t.id; }
+/* v2: a linha de chegada mudou de lugar, então gravações antigas não
+   servem mais - a volta começaria em outro ponto da pista */
+function ghostKey(t) { return 'gc_ghost2_' + t.id; }
 
 function loadGhost(def) {
   try {

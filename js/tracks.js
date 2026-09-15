@@ -214,6 +214,10 @@ function buildTrack(def) {
   const minR = def.minRadius || Math.max(46, def.width * 0.55);
   cl = relaxCurvature(cl, TRACK_SPACING, minR, 26);
   cl = resampleClosed(cl, TRACK_SPACING);
+  /* Leva a linha de chegada para a reta mais longa. Sem isso ela cai onde
+     calhou de começar o desenho, e o corredor dos boxes - que é gerado ao
+     redor dela - acaba enrolado dentro de uma curva. */
+  cl = rotateToStraight(cl, TRACK_SPACING);
   const n = cl.length;
 
   const pts = new Array(n);
@@ -333,7 +337,10 @@ function buildTrack(def) {
         const d = dist2(x, y, p.x, p.y);
         if (d < d2) { d2 = d; melhor = i; }
       }
-      return { dist: Math.sqrt(d2), i: melhor, box: melhor === P.boxIdx };
+      return {
+        dist: Math.sqrt(d2), i: melhor, box: melhor === P.boxIdx,
+        off: Math.abs(P.pts[melhor].off)      /* 0 nas rampas, cheio no meio */
+      };
     },
 
     /* posição a X unidades de comprimento de arco da linha de chegada */
@@ -345,6 +352,33 @@ function buildTrack(def) {
   };
   track.pit = buildPit(track);
   return track;
+}
+
+/* Gira a lista para que o índice 0 caia na reta mais longa, no ponto em
+   que a linha de chegada deve ficar (com espaço de boxes antes dela). */
+function rotateToStraight(cl, spacing) {
+  const n = cl.length;
+  if (n < 40) return cl;
+  const ang = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = cl[(i - 1 + n) % n], b = cl[(i + 1) % n];
+    ang[i] = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  }
+  const curv = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    curv[i] = Math.abs(wrapAngle(ang[(i + 2) % n] - ang[(i - 2 + n) % n]));
+  }
+  const janela = Math.min(n - 4, Math.round((PIT_BEFORE + PIT_AFTER) / spacing));
+  let soma = 0;
+  for (let i = 0; i < janela; i++) soma += curv[i];
+  let melhor = 0, melhorSoma = soma;
+  for (let s = 1; s < n; s++) {
+    soma += curv[(s + janela - 1) % n] - curv[(s - 1 + n) % n];
+    if (soma < melhorSoma) { melhorSoma = soma; melhor = s; }
+  }
+  /* a linha fica depois do trecho reservado à entrada dos boxes */
+  const inicio = (melhor + Math.round(PIT_BEFORE / spacing)) % n;
+  return cl.slice(inicio).concat(cl.slice(0, inicio));
 }
 
 /* ---------- boxes ----------
@@ -375,7 +409,19 @@ function buildPit(track) {
     return { lado: lado, pts: pts, folga: folga };
   };
   const a = escolher(1), b = escolher(-1);
-  const bom = a.folga >= b.folga ? a : b;
+
+  /* Num trecho curvo o box tem de ficar do lado de FORA: por dentro o
+     deslocamento pode passar do centro da curva e o corredor se inverte.
+     Só troca de lado se o de fora estiver realmente apertado. */
+  let soma = 0;
+  for (let i = 0; i < Math.min(160, track.n); i++) {
+    soma += track.pts[(base + i) % track.n].curv;
+  }
+  const fora = soma > 0 ? -1 : 1;
+  const preferido = fora === 1 ? a : b;
+  const outro = fora === 1 ? b : a;
+  const bom = (preferido.folga > track.width * 1.1 ||
+    preferido.folga >= outro.folga) ? preferido : outro;
   return {
     pts: bom.pts, side: bom.lado,
     boxIdx: Math.round(bom.pts.length * 0.56),
@@ -395,7 +441,7 @@ function pitPoints(track, lado) {
     const u = i / n;
     const rampa = clamp(Math.min(u / 0.17, (1 - u) / 0.17), 0, 1);
     const off = lado * (track.half + PIT_OFFSET) * rampa;
-    out.push({ x: p.x + p.nx * off, y: p.y + p.ny * off, ang: p.ang, u: u });
+    out.push({ x: p.x + p.nx * off, y: p.y + p.ny * off, ang: p.ang, u: u, off: off });
   }
   return out;
 }

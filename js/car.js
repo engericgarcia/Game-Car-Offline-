@@ -117,7 +117,14 @@ class Car {
       const dIdx = Math.min(this.idx, track.n - this.idx);
       if (dIdx * track.spacing < P.len * 0.75) pitInfo = track.pitAt(this.x, this.y);
     }
-    this.inPit = !!(pitInfo && pitInfo.dist < 30 && surf.dist > track.half * 0.75);
+    /* Só conta como corredor onde ele já se separou da pista. Nas rampas
+       de entrada e saída o eixo do box encosta na linha central, e sem
+       esta condição um carro que apenas abre a curva era capturado pelo
+       limitador no meio da reta. */
+    this.inPit = !!(pitInfo && pitInfo.dist < 26 &&
+      pitInfo.off > track.half * 0.9 &&
+      surf.dist > track.half * 0.85 &&
+      Math.sign(surf.side) === P.side);
     if (this.inPit) {
       this.lapClean = this.lapClean;      /* o box não anula a volta */
       this.outTimer = 0;
