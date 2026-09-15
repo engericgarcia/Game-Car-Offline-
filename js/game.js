@@ -5,7 +5,7 @@
 
 /* Atualizado pelo bump.py junto com o ?v=N. É comparado com o
    version.json do servidor para descobrir se o aparelho está atrasado. */
-const APP_VERSION = 47;
+const APP_VERSION = 48;
 
 const Game = {
   state: 'menu',           /* menu | countdown | racing | paused | over */
@@ -112,7 +112,8 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
    Agora cada dedo é rastreado pelo pointerId e o estado dos botões é
    recalculado a partir de quem está realmente na tela. Soltar fora do
    botão, arrastar de um botão para outro e apertar rápido: tudo resolve. */
-const pointerKey = new Map();     /* pointerId -> {key, level} */
+const pointerKey = new Map();     /* pointerId -> {key, level, x, y} */
+const MOVE_MIN = 7;               /* px: abaixo disso é tremor de polegar */
 
 function controlAt(x, y) {
   const node = document.elementFromPoint(x, y);
@@ -155,19 +156,28 @@ function bindTouch() {
     const c = controlAt(e.clientX, e.clientY);
     if (!c) return;
     e.preventDefault();
-    pointerKey.set(e.pointerId, c);
+    pointerKey.set(e.pointerId, { key: c.key, level: c.level, x: e.clientX, y: e.clientY });
     refreshTouch();
     if (navigator.vibrate) navigator.vibrate(c.key === 'brake' ? 14 : 8);
     Sound.init();
   });
 
-  /* arrastar o polegar de ◀ para ▶ sem levantar troca a direção */
+  /* Arrastar o polegar de ◀ para ▶ sem levantar troca a direção.
+     Duas coisas importam aqui:
+     - sair do botão para o vazio NÃO solta. Segurando o botão o polegar
+       escorrega alguns pixels o tempo todo, e soltar nessa hora fazia a
+       direção falhar no meio da curva;
+     - só refaz a consulta de posição depois de um movimento de verdade,
+       senão é uma medição de layout a cada evento. */
   window.addEventListener('pointermove', e => {
-    if (!pointerKey.has(e.pointerId)) return;
-    const c = controlAt(e.clientX, e.clientY);
     const a = pointerKey.get(e.pointerId);
-    if (!a || !c || a.key !== c.key || Math.abs(a.level - c.level) > 0.02) {
-      pointerKey.set(e.pointerId, c);
+    if (!a) return;
+    if (Math.hypot(e.clientX - a.x, e.clientY - a.y) < MOVE_MIN) return;
+    a.x = e.clientX; a.y = e.clientY;
+    const c = controlAt(e.clientX, e.clientY);
+    if (!c) return;                       /* foi para o vazio: mantém o que segurava */
+    if (c.key !== a.key || Math.abs(c.level - a.level) > 0.03) {
+      a.key = c.key; a.level = c.level;
       refreshTouch();
     }
   });
